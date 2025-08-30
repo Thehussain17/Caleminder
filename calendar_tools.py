@@ -11,7 +11,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from tzlocal import get_localzone
 
-SCOPES = ['https://www.googleapis.com/auth/calendar']
+SCOPES = ['https://www.googleapis.com/auth/calendar','https://www.googleapis.com/auth/tasks']
 
 class GoogleCalendarTools:
     def __init__(self):
@@ -190,3 +190,33 @@ class GoogleCalendarTools:
             return {"status": "success", "events": event_list}
         except Exception as e:
             return {"status": "error", "message": f"Could not process date query. Please be more specific. Error: {str(e)}"}
+        
+    def find_event_id(self, summary: str, date_str: str) -> dict:
+        """
+        Finds the event ID for an event with a given summary on a specific date.
+        Args:
+            summary: The summary (title) of the event to search for.
+            date_str: The date to search on, in "YYYY-MM-DD" format.
+        """
+        try:
+            local_tz = get_localzone()
+            date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+            start_of_day = datetime.datetime.combine(date, datetime.time.min, tzinfo=local_tz)
+            end_of_day = datetime.datetime.combine(date, datetime.time.max, tzinfo=local_tz)
+
+            events_result = self.service.events().list(
+                calendarId='primary', 
+                timeMin=start_of_day.isoformat(),
+                timeMax=end_of_day.isoformat(), 
+                singleEvents=True,
+                orderBy='startTime'
+            ).execute()
+            
+            events = events_result.get('items', [])
+            for event in events:
+                if event['summary'].lower() == summary.lower():
+                    return {"status": "success", "event_id": event['id']}
+            
+            return {"status": "error", "message": f"No event found with summary '{summary}' on {date_str}."}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
