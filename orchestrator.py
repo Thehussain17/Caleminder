@@ -3,6 +3,7 @@ import google.generativeai as genai
 import config
 from calendar_tools import GoogleCalendarTools
 from todo_tools import GoogleTodoTools
+from google import types
 import os
 import time   # For handling retries
 import random # For adding jitter to retries
@@ -15,11 +16,15 @@ class Orchestrator:
         print("Initializing Orchestrator...")
         self.calendar_tools = GoogleCalendarTools()
         self.todo_tools = GoogleTodoTools()
-        
+        grounding_tool = types.Tool(
+            google_search=types.GoogleSearch()
+)
         self.tools = [
             self.calendar_tools.create_event,
             self.calendar_tools.get_events,
             self.calendar_tools.find_event_id,
+            self.calendar_tools.get_now,
+            self.calendar_tools.list_events,
             self.calendar_tools.remove_event,
             self.calendar_tools.schedule_timetable,
             self.todo_tools.get_upcoming_tasks,
