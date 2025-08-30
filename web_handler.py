@@ -49,6 +49,7 @@ class WebHandler:
                 response_text = self.orchestrator.handle_message(message)
                 return jsonify({'response': response_text})
 
+
             except Exception as e:
                 print(f"An error occurred in the web handler: {e}")
                 return jsonify({'response': 'Sorry, a critical error occurred on the server.'}), 500

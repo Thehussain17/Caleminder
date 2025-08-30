@@ -98,26 +98,24 @@ class GoogleCalendarTools:
 
     # In calendar_tools.py
 
-    def schedule_timetable(events: list) -> dict:
-        """
-         Schedules multiple events from a list.
-        Each item in the list should be a dictionary with keys: 
-        'summary', 'start_time_str', 'end_time_str'.
-        """
+    def schedule_timetable(self, events: list) -> dict:
+
+        """Schedules multiple events on the user's primary calendar."""
         successful_events = 0
         failed_events = 0
         for event_data in events:
             try:
-            # You can call your own create_event function here!
                 self.create_event(**event_data)
                 successful_events += 1
-            except Exception:
+            except Exception as e:
+                print(f"Failed to schedule event: {event_data} - {e}")
                 failed_events += 1
-    
+
         return {
-            "status": "complete",
-            "message": f"Successfully scheduled {successful_events} events. {failed_events} events failed."
-        }
+        "status": "complete",
+        "message": f"Successfully scheduled {successful_events} events. {failed_events} events failed."
+    }
+
 
     def get_events_by_date(self, date_str: str) -> dict:
         """
