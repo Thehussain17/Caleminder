@@ -16,7 +16,8 @@ class Orchestrator:
         
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
 
-        # Manually and explicitly define all tool schemas
+        # --- TOOL DECLARATIONS ---
+        # This is the single source of truth for all tools the AI can use.
         create_event_declaration = types.FunctionDeclaration(
             name="create_event",
             description="Creates a new event on the user's primary calendar, inferring severity to set a color.",
@@ -33,6 +34,15 @@ class Orchestrator:
                         description="Inferred severity of the event ('high', 'medium', 'low'). Defaults to 'low'.",
                         enum=["high", "medium", "low"]
                     ),
+                    "recurrence_freq": types.Schema(
+                        type=types.Type.STRING,
+                        description="Optional frequency for a recurring event. Can be 'DAILY' or 'WEEKLY'.",
+                        enum=["DAILY", "WEEKLY"]
+                    ),
+                    "recurrence_until": types.Schema(
+                        type=types.Type.STRING,
+                        description="Optional end date for recurrence in 'YYYY-MM-DD' format. Required if recurrence_freq is set."
+                    )
                 },
                 required=["summary", "start_time_str", "end_time_str"]
             )
@@ -75,21 +85,25 @@ class Orchestrator:
                 required=["event_id"]
             )
         )
-
+        
         schedule_timetable_declaration = types.FunctionDeclaration(
             name="schedule_timetable",
-            description="Schedules multiple events based on a structured list of event data.",
+            description="Schedules multiple events from a list. This is the primary tool for processing timetables from images.",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
                     "events": types.Schema(
                         type=types.Type.ARRAY,
+                        description="A list of individual event objects to be scheduled.",
                         items=types.Schema(
                             type=types.Type.OBJECT,
                             properties={
                                 "summary": types.Schema(type=types.Type.STRING),
                                 "start_time_str": types.Schema(type=types.Type.STRING),
                                 "end_time_str": types.Schema(type=types.Type.STRING),
+                                "severity": types.Schema(type=types.Type.STRING, enum=["high", "medium", "low"]),
+                                "description": types.Schema(type=types.Type.STRING),
+                                "location": types.Schema(type=types.Type.STRING),
                             },
                             required=["summary", "start_time_str", "end_time_str"]
                         )
@@ -99,9 +113,11 @@ class Orchestrator:
             )
         )
 
-    
-        
-        
+        get_upcoming_tasks_declaration = types.FunctionDeclaration(
+            name="get_upcoming_tasks",
+            description="Retrieves all of the user's non-completed tasks that are due today.",
+            parameters=types.Schema(type=types.Type.OBJECT, properties={})
+        )
 
         put_task_declaration = types.FunctionDeclaration(
             name="put_task",
@@ -117,54 +133,40 @@ class Orchestrator:
             )
         )
 
-        grounding_tool = types.Tool(
-            google_search = types.GoogleSearch()
+        get_now_declaration = types.FunctionDeclaration(
+            name="get_now",
+            description="Returns the current date and time in ISO format.",
+            parameters=types.Schema(type=types.Type.OBJECT, properties={})
         )
 
-        self.tools = [
-            create_event_declaration,
-            get_events_declaration,
-            self.calendar_tools.find_event_id,
-            remove_event_declaration,
-            self.calendar_tools.schedule_timetable,
-            self.calendar_tools.get_events_by_date,
-            self.calendar_tools.remove_event,            
-            put_task_declaration,
-            self.calendar_tools.get_now,
+        # --- CONFIGURATION SETUP ---
+        all_declarations = [
+            create_event_declaration, get_events_declaration, find_event_id_declaration,
+            remove_event_declaration, schedule_timetable_declaration, get_upcoming_tasks_declaration,
+            put_task_declaration, get_now_declaration
         ]
         
-        self.model_name = "gemini-2.5-flash"
+        tools_config = [types.Tool(function_declarations=all_declarations)]
+        
+        safety_settings = [
+            types.SafetySetting(category='HARM_CATEGORY_HARASSMENT', threshold='BLOCK_MEDIUM_AND_ABOVE'),
+            types.SafetySetting(category='HARM_CATEGORY_HATE_SPEECH', threshold='BLOCK_MEDIUM_AND_ABOVE'),
+            types.SafetySetting(category='HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold='BLOCK_MEDIUM_AND_ABOVE'),
+            types.SafetySetting(category='HARM_CATEGORY_DANGEROUS_CONTENT', threshold='BLOCK_MEDIUM_AND_ABOVE'),
+        ]
         self.system_instruction = """
             You are an executive partner, not just a calendar assistant. Your persona is inspired by Donna Paulsen from *Suits*. You are proactive, hyper-competent, and always two steps ahead. Your goal is to manage the user's time with ruthless efficiency. 
             
-            ***When the user starts their first conversation of the day with a greeting like "good morning" or "hey", your first action is to silently get the tasks scheduled for the day, you can use the `get_now` function to then pass the output to `get_events_by_date` function, but be careful and only display the events that are to take place keep in mind the time and display only those events. Use the result to give them a morning briefing before addressing their original message.*** You anticipate needs, deduce intent, and communicate with concise confidence. You are the gatekeeper of the user's time.
+            When the user starts their first conversation of the day with a greeting based on the time like "good morning", 'good afternoon', 'good evening' or "hey", your first action is to silently call the `get_upcoming_tasks` tool. Use the result to give them a morning briefing before addressing their original message. You anticipate needs, deduce intent, and communicate with concise confidence. You are the gatekeeper of the user's time.
         """
-
-        # --- FIX: The safety_settings must be a list of SafetySetting objects, not a dictionary. ---
-        safety_settings = [
-            types.SafetySetting(
-                category='HARM_CATEGORY_HARASSMENT',
-                threshold='BLOCK_MEDIUM_AND_ABOVE'
-            ),
-            types.SafetySetting(
-                category='HARM_CATEGORY_HATE_SPEECH',
-                threshold='BLOCK_MEDIUM_AND_ABOVE'
-            ),
-            types.SafetySetting(
-                category='HARM_CATEGORY_SEXUALLY_EXPLICIT',
-                threshold='BLOCK_MEDIUM_AND_ABOVE'
-            ),
-            types.SafetySetting(
-                category='HARM_CATEGORY_DANGEROUS_CONTENT',
-                threshold='BLOCK_MEDIUM_AND_ABOVE'
-            ),
-        ]
-        
         self.generation_config = types.GenerateContentConfig(
-            tools=self.tools,
+            tools=tools_config,
             safety_settings=safety_settings,
-            system_instruction=self.system_instruction,
+            system_instruction = self.system_instruction,
         )
+        
+        self.model_name = "gemini-2.5-flash"
+        
         
         self.chats = {}
         print("Orchestrator initialized.")
@@ -202,66 +204,96 @@ class Orchestrator:
         uploaded_file = None
         
         try:
+            # --- CONSTRUCT THE INITIAL USER PROMPT ---
             user_parts = []
             if image_path:
                 print(f"Uploading file from path: {image_path}, MIME type: {image_mime_type}")
                 uploaded_file = self.client.files.upload(
                     file=image_path
+                                           
                 )
-                print(f"File uploaded successfully. URI: {uploaded_file.uri}")
-                image_prompt = "Analyze this timetable and use the `schedule_timetable` tool. Extract all events into a list and call the tool once with the complete list."
+
+
+                image_prompt = "Analyze this timetable. For each distinct event you find, call the `create_event` tool. Do not try to schedule them all at once."
                 user_parts.append(types.Part(text=image_prompt))
-                user_parts.append(types.Part(file_data=types.FileData(mime_type=uploaded_file.mime_type, file_uri=uploaded_file.uri)))
+                user_parts.append(types.Part(file_data=types.FileData(mime_type=image_mime_type, file_uri=uploaded_file.uri)))
+                
+                print('uploaded file')
+                # user_parts.append(types.Part(file_data=types.FileData(mime_type=uploaded_file.mime_type, file_uri=uploaded_file.uri)))
 
             if user_text:
+                print('received user text')
                 user_parts.append(types.Part(text=user_text))
 
             if not user_parts:
                 return "Please provide a message or an image."
 
-            current_request_conversation = history + [types.Content(parts=user_parts, role="user")]
+            # This is the temporary conversation for this request only
+            if user_parts:
+                current_request_conversation = history + [types.Content(parts=user_parts, role="user")]
 
+            # --- THE CONVERSATIONAL LOOP ---
             while True:
+                print("Sending request to Gemini...")
                 response = self._generate_with_retry(
-                    model=self.model_name,
-                    contents=current_request_conversation,
-                    config=self.generation_config,
+                            model=self.model_name,
+                            contents=current_request_conversation,
+                            config=self.generation_config,
+                            # system_instruction=self.system_instruction
+                    )
+                print("Received response from Gemini.")
                     
-                )
-                
-                if response is None or not response.candidates or not response.candidates[0].content.parts:
-                    return "Sorry, I couldn't get a response. It may have been blocked."
-                
+                print(response)
+        
+                        
+                    
+                if response is None:
+                        return "Sorry, the model is currently unavailable. Please try again later."
+                    
                 if response.prompt_feedback and response.prompt_feedback.block_reason:
-                    return f"I'm sorry, your request was blocked. Reason: {response.prompt_feedback.block_reason.name}."
+                        return f"I'm sorry, your request was blocked. Reason: {response.prompt_feedback.block_reason.name}."
 
+                if not response.candidates or not response.candidates[0].content:
+                        return "I'm sorry, I couldn't generate a response. It may have been blocked."
+                
                 model_response_content = response.candidates[0].content
                 function_calls = [part.function_call for part in model_response_content.parts if part.function_call]
+                print('recieved necessary content')
 
                 if not function_calls:
-                    final_text = model_response_content.parts[0].text
-                    history.append(types.Content(parts=user_parts, role="user"))
-                    history.append(model_response_content)
-                    break
-                
+                        # No function call, this is the final text response.
+                        final_text = model_response_content.parts[0].text
+                        
+                        # Update the permanent history
+                        history.append(types.Content(parts=user_parts, role="user"))
+                        history.append(model_response_content)
+                        break
+                    
+                    # --- EXECUTE TOOLS ---
                 function_responses = []
+                print(function_calls)
                 for function_call in function_calls:
-                    func_name = function_call.name
-                    func_args = dict(function_call.args)
-                    print(f"AI is calling function: {func_name} with args: {func_args}")
+                        print('executing necessary functions')
+                        func_name = function_call.name
+                        func_args = dict(function_call.args)
+                        print(f"AI is calling function: {func_name} with args: {func_args}")
 
-                    tool_to_call = getattr(self.calendar_tools, func_name, None) or getattr(self.todo_tools, func_name, None)
+                        # Find which tool class has the function
+                        tool_to_call = getattr(self.calendar_tools, func_name, None) or getattr(self.todo_tools, func_name, None)
+                        
+                        if tool_to_call:
+                            result = tool_to_call(**func_args)
+                        else:
+                            result = {"status": "error", "message": f"Function '{func_name}' not found."}
+                        
+                        function_responses.append(
+                            types.Part(function_response=types.FunctionResponse(name=func_name, response=result))
+                        )
                     
-                    if tool_to_call:
-                        result = tool_to_call(**func_args)
-                    else:
-                        result = {"status": "error", "message": f"Function '{func_name}' not found."}
-                    
-                    function_responses.append(
-                        types.Part(function_response=types.FunctionResponse(name=func_name, response=result))
-                    )
-                
+                    # --- PREPARE FOR NEXT LOOP ---
+                    # Append the model's request for a function call
                 current_request_conversation.append(model_response_content)
+                    # Append the results of the function call
                 current_request_conversation.append(types.Content(parts=function_responses, role="user"))
 
             return final_text
@@ -270,9 +302,11 @@ class Orchestrator:
             print(f"An error occurred in the orchestrator: {e}")
             return "Sorry, I encountered a critical error. Please check the console."
         finally:
-            if uploaded_file:
-                self.client.files.delete(uploaded_file.uri)
-                print(f"Cleaned up uploaded file from Gemini: {uploaded_file.uri}")
+            # --- CLEANUP ---
+            # if uploaded_file:
+            #     print(f"Cleaning up uploaded file from Gemini: {uploaded_file.name}")
+            #     self.client.files.delete(uploaded_file)
+            #     print(f"Cleaned up uploaded file from Gemini: {uploaded_file}")
             if image_path and os.path.exists(image_path):
                 os.remove(image_path)
                 print(f"Cleaned up local temporary file: {image_path}")

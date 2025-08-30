@@ -36,7 +36,7 @@ class GoogleCalendarTools:
                 pickle.dump(creds, token)
         return build('calendar', 'v3', credentials=creds)
 
-    def create_event(self, summary: str, start_time_str: str, end_time_str: str, description: str = "", location: str = "", color_id: str = None) -> dict:
+    def create_event(self, summary: str, start_time_str: str, end_time_str: str, description: str = "", location: str = "", severity: str = "",recurrence_freq: str = None, recurrence_until: str = None) -> dict:
         """
         Creates a new event on the user's primary calendar, with an optional color.
         """
@@ -48,10 +48,27 @@ class GoogleCalendarTools:
                 'summary': summary, 'location': location, 'description': description,
                 'start': {'dateTime': start_time.isoformat(), 'timeZone': str(local_tz)},
                 'end': {'dateTime': end_time.isoformat(), 'timeZone': str(local_tz)},
+                'extendedProperties':{
+                    'shared':{
+                        'severity': severity
+                    }
+                }
             }
             # --- NEW: Add colorId to the event if provided ---
-            if color_id:
-                event_body['colorId'] = color_id
+            # if color_id:
+            #     event_body['colorId'] = color_id
+            if recurrence_freq and recurrence_until:
+                try:
+                    # The 'until' date should be the end of that day to be inclusive
+                    until_date = datetime.datetime.strptime(recurrence_until, "%Y-%m-%d").date()
+                    until_datetime = datetime.datetime.combine(until_date, datetime.time.max)
+                    # Format as YYYYMMDDTHHMMSSZ for the RRULE standard
+                    until_rrule_str = until_datetime.strftime("%Y%m%dT%H%M%SZ")
+                    
+                    rrule = f'RRULE:FREQ={recurrence_freq.upper()};UNTIL={until_rrule_str}'
+                    event['recurrence'] = [rrule]
+                except ValueError:
+                    return {"status": "error", "message": "Invalid format for recurrence_until. Use YYYY-MM-DD."}
             
             created_event = self.service.events().insert(calendarId='primary', body=event_body).execute()
             return {"status": "success", "message": f"Event '{created_event['summary']}' was created."}
@@ -99,22 +116,41 @@ class GoogleCalendarTools:
     # In calendar_tools.py
 
     def schedule_timetable(self, events: list) -> dict:
-
-        """Schedules multiple events on the user's primary calendar."""
+        """
+        Schedules multiple events from a list, handling severity mapping.
+        This function is called by the orchestrator after the AI extracts events from an image.
+        """
         successful_events = 0
         failed_events = 0
+        
+        severity_to_color = {
+            "high": "11",   # Red
+            "medium": "5",  # Yellow
+            "low": "9",     # Blue
+        }
+
         for event_data in events:
             try:
-                self.create_event(**event_data)
-                successful_events += 1
+                # The AI provides 'severity', but the tool needs 'color_id'.
+                # This function acts as the translator.
+                severity = event_data.pop("severity", "low")
+                color_id = severity_to_color.get(severity, "9")
+                event_data["color_id"] = color_id
+                
+                # Call the existing, single-event creation tool
+                result = self.create_event(**event_data)
+                if result.get("status") == "success":
+                    successful_events += 1
+                else:
+                    failed_events += 1
             except Exception as e:
-                print(f"Failed to schedule event: {event_data} - {e}")
+                print(f"Failed to schedule an event from timetable: {e}")
                 failed_events += 1
-
+        
         return {
-        "status": "complete",
-        "message": f"Successfully scheduled {successful_events} events. {failed_events} events failed."
-    }
+            "status": "complete",
+            "message": f"Successfully scheduled {successful_events} events. {failed_events} events failed to schedule."
+        }
 
 
     def get_events_by_date(self, date_str: str) -> dict:
