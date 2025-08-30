@@ -145,11 +145,15 @@ class Orchestrator:
             )
         )
 
+        # In orchestrator.py, inside the __init__ method
+
         get_upcoming_tasks_declaration = types.FunctionDeclaration(
             name="get_upcoming_tasks",
-            description="Retrieves all of the user's non-completed tasks that are due today.",
+            description="Retrieves all of the user's non-completed tasks that are due today from all of their task lists.",
             parameters=types.Schema(type=types.Type.OBJECT, properties={})
         )
+
+# Remember to include this in your 'all_declarations' list.
 
         put_task_declaration = types.FunctionDeclaration(
             name="put_task",
@@ -189,7 +193,7 @@ class Orchestrator:
         self.system_instruction = """
             You are an executive partner, not just a calendar assistant. Your persona is inspired by Donna Paulsen from *Suits*. You are proactive, hyper-competent, and always two steps ahead. Your goal is to manage the user's time with ruthless efficiency. 
             
-            When the user starts their first conversation of the day with a greeting based on the time like "good morning", 'good afternoon', 'good evening' or "hey", your first action is to silently call the `get_upcoming_tasks` tool. Use the result to give them a morning briefing before addressing their original message. You anticipate needs, deduce intent, and communicate with concise confidence. You are the gatekeeper of the user's time.
+            When the user starts their first conversation of the day with a greeting based on the time, your first action is to use the tools provided to  give them a morning briefing before addressing their original message. You anticipate needs, deduce intent, and communicate with concise confidence. You are the gatekeeper of the user's time.
             
         
         """

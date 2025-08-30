@@ -48,17 +48,18 @@ class GoogleTodoTools:
         return creds
 
     def get_upcoming_tasks(self) -> dict:
-        """Retrieves all non-completed tasks that are due today."""
+        """Retrieves all non-completed tasks that are due today, including their due dates."""
         try:
             local_tz = get_localzone()
             now = datetime.datetime.now(local_tz)
             end_of_day = datetime.datetime.combine(now.date(), datetime.time.max, tzinfo=local_tz)
 
             tasklists = self.tasks_service.tasklists().list().execute()
-            primary_list_id = tasklists['items'][0]['id'] if tasklists.get('items') else None
             
-            if not primary_list_id:
+            if not tasklists.get('items'):
                 return {"status": "success", "tasks": [], "message": "No task lists found."}
+
+            primary_list_id = tasklists['items'][0]['id']
 
             results = self.tasks_service.tasks().list(
                 tasklist=primary_list_id,
@@ -71,8 +72,15 @@ class GoogleTodoTools:
             if not tasks:
                 return {"status": "success", "tasks": [], "message": "You have no tasks due today."}
 
-            task_titles = [task['title'] for task in tasks]
-            return {"status": "success", "tasks": task_titles}
+            # --- FIX: Return a list of objects with both title and due date ---
+            task_list = []
+            for task in tasks:
+                task_list.append({
+                    "title": task.get('title', 'No Title'),
+                    "due": task.get('due', 'No due date') # Get the due date for each task
+                })
+            return {"status": "success", "tasks": task_list}
+
         except Exception as e:
             return {"status": "error", "message": f"An error occurred while fetching tasks: {str(e)}"}
         

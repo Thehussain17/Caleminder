@@ -40,31 +40,53 @@ class CommunicationTools:
         return creds
 
     def find_contact(self, name_query: str) -> dict:
-        """Finds a contact by name and returns their email address."""
+        """
+        Finds a contact by name and returns their email address.
+        Handles cases where no contact is found, or contacts are found but have no email.
+        """
         try:
-            results = self.people_service.people().connections().list(
-                resourceName='people/me',
+            # --- FIX: Use the correct 'searchContacts' method for querying ---
+            results = self.people_service.people().searchContacts(
+                query=name_query,
                 pageSize=5,
-                personFields='names,emailAddresses',
-                query=name_query
+                readMask='names,emailAddresses'
             ).execute()
-            connections = results.get('connections', [])
+            
+            # The response structure is different for searchContacts
+            search_results = results.get('results', [])
+            connections = [result.get('person') for result in search_results if result.get('person')]
 
+
+            # Case 1: No contacts found at all matching the query.
             if not connections:
                 return {"status": "not_found", "message": f"No contact found matching '{name_query}'."}
-            
-            contact_list = []
+
+            # Filter the found connections to only include those with email addresses.
+            contacts_with_email = []
             for person in connections:
                 names = person.get('names', [{}])
-                emails = person.get('emailAddresses', [{}])
-                if emails:
-                    contact_list.append({
-                        "name": names[0].get('displayName'),
+                emails = person.get('emailAddresses', []) # Email is a list, not a dict with a value
+                
+                # We only care about contacts that have a name and at least one email.
+                if names and emails:
+                    contacts_with_email.append({
+                        "name": names[0].get('displayName', 'N/A'),
                         "email": emails[0].get('value')
                     })
-            return {"status": "success", "contacts": contact_list}
+            
+            # Case 2: Contacts were found, but none of them have an email address listed.
+            if not contacts_with_email:
+                return {
+                    "status": "no_email_found", 
+                    "message": f"Found contacts matching '{name_query}', but none have an email address."
+                }
+
+            # Case 3: Success! We found one or more contacts with email addresses.
+            return {"status": "success", "contacts": contacts_with_email}
+
         except HttpError as e:
-            return {"status": "error", "message": f"An API error occurred: {e}"}
+            # Handle potential API errors (e.g., permissions issues)
+            return {"status": "error", "message": f"An API error occurred while searching for contacts: {e}"}
 
     def send_email(self, to: str, subject: str, body: str) -> dict:
         """Sends an email to a specified recipient."""
