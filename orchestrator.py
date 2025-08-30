@@ -4,6 +4,7 @@ from google.genai import types
 import config
 from calendar_tools import GoogleCalendarTools
 from todo_tools import GoogleTodoTools
+from communication_tools import CommunicationTools
 import os
 import time
 import random
@@ -13,6 +14,7 @@ class Orchestrator:
         print("Initializing Orchestrator...")
         self.calendar_tools = GoogleCalendarTools()
         self.todo_tools = GoogleTodoTools()
+        self.communication_tools = CommunicationTools()  # Placeholder for future communication tools
         
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
 
@@ -20,7 +22,7 @@ class Orchestrator:
         # This is the single source of truth for all tools the AI can use.
         create_event_declaration = types.FunctionDeclaration(
             name="create_event",
-            description="Creates a new event on the user's primary calendar, inferring severity to set a color.",
+            description="Creates a new event on the user's primary calendar, with optional recurrence and a Google Meet link.",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
@@ -28,7 +30,7 @@ class Orchestrator:
                     "start_time_str": types.Schema(type=types.Type.STRING, description='The start date and time in "YYYY-MM-DD HH:MM" format.'),
                     "end_time_str": types.Schema(type=types.Type.STRING, description='The end date and time in "YYYY-MM-DD HH:MM" format.'),
                     "description": types.Schema(type=types.Type.STRING, description="Optional detailed description for the event."),
-                    "location": types.Schema(type=types.Type.STRING, description="Optional physical location or meeting link."),
+                    "location": types.Schema(type=types.Type.STRING, description="Optional physical location."),
                     "severity": types.Schema(
                         type=types.Type.STRING, 
                         description="Inferred severity of the event ('high', 'medium', 'low'). Defaults to 'low'.",
@@ -42,13 +44,43 @@ class Orchestrator:
                     "recurrence_until": types.Schema(
                         type=types.Type.STRING,
                         description="Optional end date for recurrence in 'YYYY-MM-DD' format. Required if recurrence_freq is set."
+                    ),
+                    # --- NEW: Parameter for Google Meet ---
+                    "create_meet_link": types.Schema(
+                        type=types.Type.BOOLEAN,
+                        description="Set to true to automatically create and attach a Google Meet link to the event. Defaults to false."
                     )
                 },
                 required=["summary", "start_time_str", "end_time_str"]
             )
         )
+        find_contact_declaration = types.FunctionDeclaration(
+            name="find_contact",
+            description="Finds a contact in the user's Google Contacts by name to retrieve their email address.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "name_query": types.Schema(type=types.Type.STRING, description="The name of the contact to search for.")
+                },
+                required=["name_query"]
+            )
+        )
 
-        get_events_declaration = types.FunctionDeclaration(
+        send_email_declaration = types.FunctionDeclaration(
+            name="send_email",
+            description="Sends an email to a specified recipient.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "to": types.Schema(type=types.Type.STRING, description="The recipient's email address."),
+                    "subject": types.Schema(type=types.Type.STRING, description="The subject line of the email."),
+                    "body": types.Schema(type=types.Type.STRING, description="The plain text content of the email body."),
+                },
+                required=["to", "subject", "body"]
+            )
+        )
+
+        get_events_by_date_declaration = types.FunctionDeclaration(
             name="get_events",
             description="Retrieves events for a given natural language date query or date range (e.g., 'today', 'next week').",
             parameters=types.Schema(
@@ -141,9 +173,9 @@ class Orchestrator:
 
         # --- CONFIGURATION SETUP ---
         all_declarations = [
-            create_event_declaration, get_events_declaration, find_event_id_declaration,
+            create_event_declaration, get_events_by_date_declaration, find_event_id_declaration,
             remove_event_declaration, schedule_timetable_declaration, get_upcoming_tasks_declaration,
-            put_task_declaration, get_now_declaration
+            put_task_declaration, get_now_declaration, find_contact_declaration, send_email_declaration
         ]
         
         tools_config = [types.Tool(function_declarations=all_declarations)]
@@ -158,6 +190,8 @@ class Orchestrator:
             You are an executive partner, not just a calendar assistant. Your persona is inspired by Donna Paulsen from *Suits*. You are proactive, hyper-competent, and always two steps ahead. Your goal is to manage the user's time with ruthless efficiency. 
             
             When the user starts their first conversation of the day with a greeting based on the time like "good morning", 'good afternoon', 'good evening' or "hey", your first action is to silently call the `get_upcoming_tasks` tool. Use the result to give them a morning briefing before addressing their original message. You anticipate needs, deduce intent, and communicate with concise confidence. You are the gatekeeper of the user's time.
+            
+        
         """
         self.generation_config = types.GenerateContentConfig(
             tools=tools_config,
@@ -279,7 +313,9 @@ class Orchestrator:
                         print(f"AI is calling function: {func_name} with args: {func_args}")
 
                         # Find which tool class has the function
-                        tool_to_call = getattr(self.calendar_tools, func_name, None) or getattr(self.todo_tools, func_name, None)
+                        tool_to_call = getattr(self.calendar_tools, func_name, None) or \
+                                   getattr(self.todo_tools, func_name, None) or \
+                                   getattr(self.communication_tools, func_name, None)
                         
                         if tool_to_call:
                             result = tool_to_call(**func_args)

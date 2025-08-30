@@ -3,6 +3,7 @@ import os
 import pickle
 import json
 import datetime
+import uuid
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse as date_parse
 from google.auth.transport.requests import Request
@@ -11,7 +12,12 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from tzlocal import get_localzone
 
-SCOPES = ['https://www.googleapis.com/auth/calendar','https://www.googleapis.com/auth/tasks']
+SCOPES =[
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/tasks',
+    'https://www.googleapis.com/auth/contacts', # Read contacts
+    'https://www.googleapis.com/auth/gmail.send'       # Send emails
+]
 
 class GoogleCalendarTools:
     def __init__(self):
@@ -36,7 +42,7 @@ class GoogleCalendarTools:
                 pickle.dump(creds, token)
         return build('calendar', 'v3', credentials=creds)
 
-    def create_event(self, summary: str, start_time_str: str, end_time_str: str, description: str = "", location: str = "", severity: str = "",recurrence_freq: str = None, recurrence_until: str = None) -> dict:
+    def create_event(self, summary: str, start_time_str: str, end_time_str: str, description: str = "", location: str = "", severity: str = "",recurrence_freq: str = None, recurrence_until: str = None, create_meet_link: bool = False) -> dict:
         """
         Creates a new event on the user's primary calendar, with an optional color.
         """
@@ -44,7 +50,7 @@ class GoogleCalendarTools:
         try:
             start_time = datetime.datetime.strptime(start_time_str, "%Y-%m-%d %H:%M").replace(tzinfo=local_tz)
             end_time = datetime.datetime.strptime(end_time_str, "%Y-%m-%d %H:%M").replace(tzinfo=local_tz)
-            event_body = {
+            event = {
                 'summary': summary, 'location': location, 'description': description,
                 'start': {'dateTime': start_time.isoformat(), 'timeZone': str(local_tz)},
                 'end': {'dateTime': end_time.isoformat(), 'timeZone': str(local_tz)},
@@ -57,23 +63,45 @@ class GoogleCalendarTools:
             # --- NEW: Add colorId to the event if provided ---
             # if color_id:
             #     event_body['colorId'] = color_id
+            insert_kwargs = {'calendarId': 'primary', 'body': event}
+
+            if create_meet_link:
+                event['conferenceData'] = {
+                    'createRequest': {
+                        'requestId': f"{uuid.uuid4().hex}",
+                        'conferenceSolutionKey': {'type': 'hangoutsMeet'}
+                    }
+                }
+                # --- FIX: Only add conferenceDataVersion when creating a meet link ---
+                insert_kwargs['conferenceDataVersion'] = 1
+
             if recurrence_freq and recurrence_until:
                 try:
-                    # The 'until' date should be the end of that day to be inclusive
                     until_date = datetime.datetime.strptime(recurrence_until, "%Y-%m-%d").date()
                     until_datetime = datetime.datetime.combine(until_date, datetime.time.max)
-                    # Format as YYYYMMDDTHHMMSSZ for the RRULE standard
                     until_rrule_str = until_datetime.strftime("%Y%m%dT%H%M%SZ")
-                    
                     rrule = f'RRULE:FREQ={recurrence_freq.upper()};UNTIL={until_rrule_str}'
                     event['recurrence'] = [rrule]
                 except ValueError:
                     return {"status": "error", "message": "Invalid format for recurrence_until. Use YYYY-MM-DD."}
+
+            created_event = self.service.events().insert(**insert_kwargs).execute()
             
-            created_event = self.service.events().insert(calendarId='primary', body=event_body).execute()
-            return {"status": "success", "message": f"Event '{created_event['summary']}' was created."}
+            response_message = f"Event '{created_event.get('summary')}' created successfully."
+            if 'hangoutLink' in created_event:
+                response_message += f" Google Meet link: {created_event['hangoutLink']}"
+
+            return {"status": "success", "message": response_message, "meet_link": created_event.get('hangoutLink')}
+        except HttpError as error:
+            # --- FIX: Provide more detailed error logging ---
+            print(f"An HttpError occurred: {error.resp.status} - {error.content}")
+            return {"status": "error", "message": f"An API error occurred: {error.resp.reason}"}
         except Exception as e:
-            return {"status": "error", "message": str(e)}
+            import traceback
+            print(f"An unexpected error occurred in create_event:")
+            traceback.print_exc()
+            return {"status": "error", "message": f"An unexpected error occurred: {str(e)}"}
+
         
     def get_now(self) -> dict:
         """
@@ -225,11 +253,11 @@ class GoogleCalendarTools:
         except Exception as e:
             return {"status": "error", "message": f"Could not process date query. Please be more specific. Error: {str(e)}"}
         
-    def find_event_id(self, summary: str, date_str: str) -> dict:
+    def find_event_id(self, query: str, date_str: str) -> dict:
         """
         Finds the event ID for an event with a given summary on a specific date.
         Args:
-            summary: The summary (title) of the event to search for.
+            query: The summary (title) of the event to search for.
             date_str: The date to search on, in "YYYY-MM-DD" format.
         """
         try:
@@ -241,16 +269,17 @@ class GoogleCalendarTools:
             events_result = self.service.events().list(
                 calendarId='primary', 
                 timeMin=start_of_day.isoformat(),
-                timeMax=end_of_day.isoformat(), 
-                singleEvents=True,
+                timeMax=end_of_day.isoformat(),
+                 singleEvents=True,
                 orderBy='startTime'
             ).execute()
-            
+        
             events = events_result.get('items', [])
             for event in events:
-                if event['summary'].lower() == summary.lower():
+                # Check if the event's summary matches the query (case-insensitive)
+                if event['summary'].lower() == query.lower():
                     return {"status": "success", "event_id": event['id']}
-            
-            return {"status": "error", "message": f"No event found with summary '{summary}' on {date_str}."}
+        
+            return {"status": "error", "message": f"No event found with summary '{query}' on {date_str}."}
         except Exception as e:
             return {"status": "error", "message": str(e)}

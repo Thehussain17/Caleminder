@@ -7,7 +7,12 @@ from googleapiclient.discovery import build
 from tzlocal import get_localzone
 
 # Define only the scope needed for this tool
-SCOPES = ['https://www.googleapis.com/auth/calendar','https://www.googleapis.com/auth/tasks']
+SCOPES = [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/tasks',
+    'https://www.googleapis.com/auth/contacts', # Read contacts
+    'https://www.googleapis.com/auth/gmail.send'       # Send emails
+]
 
 class GoogleTodoTools:
     def __init__(self):
