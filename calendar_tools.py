@@ -42,48 +42,57 @@ class GoogleCalendarTools:
                 pickle.dump(creds, token)
         return build('calendar', 'v3', credentials=creds)
 
-    def create_event(self, summary: str, start_time_str: str, end_time_str: str, description: str = "", location: str = "", severity: str = "",recurrence_freq: str = None, recurrence_until: str = None, create_meet_link: bool = False) -> dict:
+    def create_event(self, summary: str, start_time_str: str, end_time_str: str, description: str = "", location: str = "", event_type: str = "personal", recurrence_freq: str = None, recurrence_until: str = None, create_meet_link: bool = False) -> dict:
         """
-        Creates a new event on the user's primary calendar, with an optional color.
+        Creates a new event, applying a specific color based on the event's category (event_type).
         """
         local_tz = get_localzone()
+
+        # --- NEW: A richer, context-aware color palette ---
+        # Maps the conceptual event_type to a specific Google Calendar color ID.
+        event_type_to_color = {
+            "work": "8",       # Graphite
+            "personal": "2",   # Sage
+            "focus_time": "9", # Blueberry
+            "health": "4",     # Flamingo
+            "social": "6",     # Tangerine
+            "urgent": "11"     # Tomato
+        }
+        
         try:
             start_time = datetime.datetime.strptime(start_time_str, "%Y-%m-%d %H:%M").replace(tzinfo=local_tz)
             end_time = datetime.datetime.strptime(end_time_str, "%Y-%m-%d %H:%M").replace(tzinfo=local_tz)
-            event = {
-                'summary': summary, 'location': location, 'description': description,
+            
+            event_body = {
+                'summary': summary,
+                'location': location,
+                'description': description,
                 'start': {'dateTime': start_time.isoformat(), 'timeZone': str(local_tz)},
                 'end': {'dateTime': end_time.isoformat(), 'timeZone': str(local_tz)},
-                'extendedProperties':{
-                    'shared':{
-                        'severity': severity
-                    }
-                }
+                # Add the color ID based on the event_type
+                'colorId': event_type_to_color.get(event_type.lower(), "2") # Default to Sage
             }
-            # --- NEW: Add colorId to the event if provided ---
-            # if color_id:
-            #     event_body['colorId'] = color_id
-            insert_kwargs = {'calendarId': 'primary', 'body': event}
+
+            insert_kwargs = {'calendarId': 'primary', 'body': event_body}
 
             if create_meet_link:
-                event['conferenceData'] = {
+                event_body['conferenceData'] = {
                     'createRequest': {
                         'requestId': f"{uuid.uuid4().hex}",
                         'conferenceSolutionKey': {'type': 'hangoutsMeet'}
                     }
                 }
-                # --- FIX: Only add conferenceDataVersion when creating a meet link ---
                 insert_kwargs['conferenceDataVersion'] = 1
-
+            
             if recurrence_freq and recurrence_until:
                 try:
                     until_date = datetime.datetime.strptime(recurrence_until, "%Y-%m-%d").date()
                     until_datetime = datetime.datetime.combine(until_date, datetime.time.max)
                     until_rrule_str = until_datetime.strftime("%Y%m%dT%H%M%SZ")
                     rrule = f'RRULE:FREQ={recurrence_freq.upper()};UNTIL={until_rrule_str}'
-                    event['recurrence'] = [rrule]
+                    event_body['recurrence'] = [rrule]
                 except ValueError:
-                    return {"status": "error", "message": "Invalid format for recurrence_until. Use YYYY-MM-DD."}
+                    return {"status": "error", "message": "Invalid format for recurrence_until. Use YYY-MM-DD."}
 
             created_event = self.service.events().insert(**insert_kwargs).execute()
             
@@ -93,7 +102,6 @@ class GoogleCalendarTools:
 
             return {"status": "success", "message": response_message, "meet_link": created_event.get('hangoutLink')}
         except HttpError as error:
-            # --- FIX: Provide more detailed error logging ---
             print(f"An HttpError occurred: {error.resp.status} - {error.content}")
             return {"status": "error", "message": f"An API error occurred: {error.resp.reason}"}
         except Exception as e:

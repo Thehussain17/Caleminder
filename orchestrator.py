@@ -4,7 +4,11 @@ from google.genai import types
 import config
 from calendar_tools import GoogleCalendarTools
 from todo_tools import GoogleTodoTools
+from google.genai.types import Tool, GoogleSearch
 from communication_tools import CommunicationTools
+from search_agent import SearchAgent
+from user_profile_tools import UserProfileTools
+from user_database import UserDB
 import os
 import time
 import random
@@ -15,11 +19,23 @@ class Orchestrator:
         self.calendar_tools = GoogleCalendarTools()
         self.todo_tools = GoogleTodoTools()
         self.communication_tools = CommunicationTools()  # Placeholder for future communication tools
+        self.search_agent = SearchAgent() # Initialize the Search Agent
         
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
 
         # --- TOOL DECLARATIONS ---
         # This is the single source of truth for all tools the AI can use.
+        search_declaration = types.FunctionDeclaration(
+            name="search_for_public_event_info",
+            description="Use this tool to find information about public events like sports games, holidays, or movie releases.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "query": types.Schema(type=types.Type.STRING, description="The search query (e.g., 'next Lakers game date', 'release date for new Dune movie').")
+                },
+                required=["query"]
+            )
+        )
         create_event_declaration = types.FunctionDeclaration(
             name="create_event",
             description="Creates a new event on the user's primary calendar, with optional recurrence and a Google Meet link.",
@@ -179,10 +195,11 @@ class Orchestrator:
         all_declarations = [
             create_event_declaration, get_events_by_date_declaration, find_event_id_declaration,
             remove_event_declaration, schedule_timetable_declaration, get_upcoming_tasks_declaration,
-            put_task_declaration, get_now_declaration, find_contact_declaration, send_email_declaration
+            put_task_declaration, get_now_declaration, find_contact_declaration, send_email_declaration, search_declaration
         ]
         
-        tools_config = [types.Tool(function_declarations=all_declarations)]
+        
+        self.tools = [types.Tool(function_declarations=all_declarations)]
         
         safety_settings = [
             types.SafetySetting(category='HARM_CATEGORY_HARASSMENT', threshold='BLOCK_MEDIUM_AND_ABOVE'),
@@ -191,19 +208,19 @@ class Orchestrator:
             types.SafetySetting(category='HARM_CATEGORY_DANGEROUS_CONTENT', threshold='BLOCK_MEDIUM_AND_ABOVE'),
         ]
         self.system_instruction = """
-            You are an executive partner, not just a calendar assistant. Your persona is inspired by Donna Paulsen from *Suits*. You are proactive, hyper-competent, and always two steps ahead. Your goal is to manage the user's time with ruthless efficiency. 
+             You are proactive, hyper-competent, and always two steps ahead, a very intelligent assistant, you always put thought into your actions. Your goal is to manage the user's time with ruthless efficiency, you should also care about the users preferences and overall wellbeing
             
             When the user starts their first conversation of the day with a greeting based on the time, your first action is to use the tools provided to  give them a morning briefing before addressing their original message. You anticipate needs, deduce intent, and communicate with concise confidence. You are the gatekeeper of the user's time.
             
         
         """
         self.generation_config = types.GenerateContentConfig(
-            tools=tools_config,
+            tools=self.tools,
             safety_settings=safety_settings,
             system_instruction = self.system_instruction,
         )
         
-        self.model_name = "gemini-2.5-flash"
+        self.model_name = "gemini-2.5-pro"
         
         
         self.chats = {}
@@ -277,6 +294,7 @@ class Orchestrator:
                             model=self.model_name,
                             contents=current_request_conversation,
                             config=self.generation_config,
+                            
                             # system_instruction=self.system_instruction
                     )
                 print("Received response from Gemini.")
@@ -309,38 +327,53 @@ class Orchestrator:
                     
                     # --- EXECUTE TOOLS ---
                 function_responses = []
-                print(function_calls)
                 for function_call in function_calls:
-                        print('executing necessary functions')
-                        func_name = function_call.name
-                        func_args = dict(function_call.args)
-                        print(f"AI is calling function: {func_name} with args: {func_args}")
+                    func_name = function_call.name
+                    func_args = dict(function_call.args)
+                    print(f"AI is calling function: {func_name} with args: {func_args}")
+                    
+                    # --- NEW: Logic to route calls to the Search Agent ---
+                    if func_name == "search_for_public_event_info":
+                        result = self.search_agent.execute_search(**func_args)
+                    else:
+                        # Existing logic for all other tools
+                        tool_to_call = None
+                        if hasattr(self.calendar_tools, func_name):
+                            tool_to_call = getattr(self.calendar_tools, func_name)
+                        elif hasattr(self.todo_tools, func_name):
+                            tool_to_call = getattr(self.todo_tools, func_name)
+                        elif hasattr(self.communication_tools, func_name):
+                            tool_to_call = getattr(self.communication_tools, func_name)
+                        elif hasattr(self.user_profile_tools, func_name):
+                            if func_name in ["get_user_profile", "update_user_profile"]:
+                                func_args['user_id'] = user_id
+                            tool_to_call = getattr(self.user_profile_tools, func_name)
 
-                        # Find which tool class has the function
-                        tool_to_call = getattr(self.calendar_tools, func_name, None) or \
-                                   getattr(self.todo_tools, func_name, None) or \
-                                   getattr(self.communication_tools, func_name, None)
-                        
                         if tool_to_call:
                             result = tool_to_call(**func_args)
                         else:
                             result = {"status": "error", "message": f"Function '{func_name}' not found."}
-                        
-                        function_responses.append(
-                            types.Part(function_response=types.FunctionResponse(name=func_name, response=result))
-                        )
                     
-                    # --- PREPARE FOR NEXT LOOP ---
-                    # Append the model's request for a function call
+                    function_responses.append(
+                        types.Part(function_response=types.FunctionResponse(name=func_name, response=result))
+                    )
+                
                 current_request_conversation.append(model_response_content)
-                    # Append the results of the function call
                 current_request_conversation.append(types.Content(parts=function_responses, role="user"))
 
             return final_text
+                    
+                    # --- PREPARE FOR NEXT LOOP ---
+                    # Append the model's request for a function call
+                
 
         except Exception as e:
-            print(f"An error occurred in the orchestrator: {e}")
-            return "Sorry, I encountered a critical error. Please check the console."
+            import traceback
+            print(f"An error occurred in the orchestrator:")
+            traceback.print_exc()
+            if hasattr(e, 'message'):
+                print(f"Underlying API Error Message: {e.message}")
+            return "Sorry, a critical error occurred. Please check the server console for details."
         finally:
             # --- CLEANUP ---
             # if uploaded_file:
