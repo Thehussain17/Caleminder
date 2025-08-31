@@ -192,11 +192,50 @@ class Orchestrator:
             parameters=types.Schema(type=types.Type.OBJECT, properties={})
         )
 
+        delete_task_declaration = types.FunctionDeclaration(
+            name="delete_task",
+            description="Deletes a task by its unique ID from a specified task list.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "task_id": types.Schema(type=types.Type.STRING, description="The unique ID of the task to delete."),
+                    "category": types.Schema(type=types.Type.STRING, description="The category of the task list (e.g., 'Work', 'Personal'). Defaults to 'General'.")
+                },
+                required=["task_id"]
+            )
+        )
+        
+        mark_task_complete_declaration = types.FunctionDeclaration(
+            name="mark_task_complete",
+            description="Marks a task as completed by its unique ID in a specified task list.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "task_id": types.Schema(type=types.Type.STRING, description="The unique ID of the task to mark as complete."),
+                    "category": types.Schema(type=types.Type.STRING, description="The category of the task list (e.g., 'Work', 'Personal'). Defaults to 'General'.")
+                },
+                required=["task_id"]
+            )
+        )
+
+        find_task_id_declaration = types.FunctionDeclaration(
+            name="find_task_id",
+            description="Finds a task by title in a specified task list and returns its unique ID.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "title_query": types.Schema(type=types.Type.STRING, description="The title or content of the task to search for."),
+                    "category": types.Schema(type=types.Type.STRING, description="The category of the task list (e.g., 'Work', 'Personal'). Defaults to 'General'.")
+                },
+                required=["title_query"]
+            )
+        )
         # --- CONFIGURATION SETUP ---
         all_declarations = [
             create_event_declaration, get_events_by_date_declaration, find_event_id_declaration,
             remove_event_declaration, schedule_timetable_declaration, get_upcoming_tasks_declaration,
             put_task_declaration, get_now_declaration, find_contact_declaration, send_email_declaration, search_declaration
+            , delete_task_declaration, mark_task_complete_declaration, find_task_id_declaration
         ]
         
         

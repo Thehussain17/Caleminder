@@ -119,3 +119,100 @@ class GoogleTodoTools:
 
         except Exception as e:
             return {"status": "error", "message": f"An error occurred while creating the task: {str(e)}"}
+        
+    def delete_task(self, task_id: str, category: str = "General") -> dict:
+        """
+        Deletes a task by its ID from the specified category's task list.
+        """
+        try:
+            # 1. Find the appropriate task list
+            tasklists = self.tasks_service.tasklists().list().execute().get('items', [])
+            target_list_id = None
+            
+            for tasklist in tasklists:
+                if category.lower() == tasklist.get('title', '').lower():
+                    target_list_id = tasklist['id']
+                    break
+            
+            if not target_list_id:
+                return {"status": "error", "message": f"No task list found for category '{category}'."}
+
+            # 2. Delete the task
+            self.tasks_service.tasks().delete(tasklist=target_list_id, task=task_id).execute()
+            return {"status": "success", "message": f"Task with ID '{task_id}' deleted from list '{category}'."}
+
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred while deleting the task: {str(e)}"}
+        
+
+    def mark_task_complete(self, task_id: str, category: str = "General") -> dict:
+        """
+        Marks a task as completed by its ID in the specified category's task list.
+        """
+        try:
+            # 1. Find the appropriate task list
+            tasklists = self.tasks_service.tasklists().list().execute().get('items', [])
+            target_list_id = None
+            
+            for tasklist in tasklists:
+                if category.lower() == tasklist.get('title', '').lower():
+                    target_list_id = tasklist['id']
+                    break
+            
+            if not target_list_id:
+                return {"status": "error", "message": f"No task list found for category '{category}'."}
+
+            # 2. Retrieve the existing task
+            task = self.tasks_service.tasks().get(tasklist=target_list_id, task=task_id).execute()
+            if not task:
+                return {"status": "error", "message": f"No task found with ID '{task_id}' in list '{category}'."}
+
+            # 3. Update the task to mark it as completed
+            task['status'] = 'completed'
+            task['completed'] = datetime.datetime.utcnow().isoformat() + 'Z' # RFC 3339 format
+            
+            updated_task = self.tasks_service.tasks().update(tasklist=target_list_id, task=task_id, body=task).execute()
+            
+            return {"status": "success", "message": f"Task with ID '{task_id}' marked as completed in list '{category}'.", "task": updated_task}
+
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred while marking the task as complete: {str(e)}"}
+        
+    def find_task_id(self, task_title: str, category: str = "General") -> dict:
+        """
+        Finds the ID of a task by its title within a specific category (task list).
+        """
+        try:
+            # Step 1: Find the ID of the task list for the given category
+            tasklists_result = self.tasks_service.tasklists().list().execute()
+            tasklists = tasklists_result.get('items', [])
+            
+            target_list_id = None
+            for tl in tasklists:
+                if tl['title'].lower() == category.lower():
+                    target_list_id = tl['id']
+                    break
+            
+            if not target_list_id:
+                return {"status": "not_found", "message": f"Task list category '{category}' not found."}
+
+            # Step 2: List all tasks in that task list
+            tasks_result = self.tasks_service.tasks().list(tasklist=target_list_id, showCompleted=False, maxResults=100).execute()
+            tasks = tasks_result.get('items', [])
+
+            # Step 3: Find the task(s) with the matching title
+            matching_tasks = []
+            for task in tasks:
+                if task['title'].lower() == task_title.lower():
+                    matching_tasks.append({
+                        "id": task['id'],
+                        "title": task['title']
+                    })
+
+            if not matching_tasks:
+                return {"status": "not_found", "message": f"No task named '{task_title}' found in the '{category}' list."}
+            
+            return {"status": "success", "tasks": matching_tasks}
+
+        except Exception as e:
+            return {"status": "error", "message": f"An error occurred while finding the task: {str(e)}"}
