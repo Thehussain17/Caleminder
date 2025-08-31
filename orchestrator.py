@@ -36,9 +36,11 @@ class Orchestrator:
                 required=["query"]
             )
         )
+        # In orchestrator.py, replace the old declaration with this one:
+
         create_event_declaration = types.FunctionDeclaration(
             name="create_event",
-            description="Creates a new event on the user's primary calendar, with optional recurrence and a Google Meet link.",
+            description="Creates a new event, applying a specific color based on the event's category.",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
@@ -46,11 +48,11 @@ class Orchestrator:
                     "start_time_str": types.Schema(type=types.Type.STRING, description='The start date and time in "YYYY-MM-DD HH:MM" format.'),
                     "end_time_str": types.Schema(type=types.Type.STRING, description='The end date and time in "YYYY-MM-DD HH:MM" format.'),
                     "description": types.Schema(type=types.Type.STRING, description="Optional detailed description for the event."),
-                    "location": types.Schema(type=types.Type.STRING, description="Optional physical location."),
-                    "severity": types.Schema(
+                    "location": types.Schema(type=types.Type.STRING, description="Optional physical location or meeting link for the event."),
+                    "event_type": types.Schema(
                         type=types.Type.STRING, 
-                        description="Inferred severity of the event ('high', 'medium', 'low'). Defaults to 'low'.",
-                        enum=["high", "medium", "low"]
+                        description="The category of the event, which determines its color. Defaults to 'personal'.",
+                        enum=["work", "personal", "focus_time", "health", "social", "urgent"]
                     ),
                     "recurrence_freq": types.Schema(
                         type=types.Type.STRING,
@@ -61,7 +63,6 @@ class Orchestrator:
                         type=types.Type.STRING,
                         description="Optional end date for recurrence in 'YYYY-MM-DD' format. Required if recurrence_freq is set."
                     ),
-                    # --- NEW: Parameter for Google Meet ---
                     "create_meet_link": types.Schema(
                         type=types.Type.BOOLEAN,
                         description="Set to true to automatically create and attach a Google Meet link to the event. Defaults to false."
@@ -69,7 +70,7 @@ class Orchestrator:
                 },
                 required=["summary", "start_time_str", "end_time_str"]
             )
-        )
+)
         find_contact_declaration = types.FunctionDeclaration(
             name="find_contact",
             description="Finds a contact in the user's Google Contacts by name to retrieve their email address.",
@@ -211,6 +212,8 @@ class Orchestrator:
              You are proactive, hyper-competent, and always two steps ahead, a very intelligent assistant, you always put thought into your actions. Your goal is to manage the user's time with ruthless efficiency, you should also care about the users preferences and overall wellbeing
             
             When the user starts their first conversation of the day with a greeting based on the time, your first action is to use the tools provided to  give them a morning briefing before addressing their original message. You anticipate needs, deduce intent, and communicate with concise confidence. You are the gatekeeper of the user's time.
+            also you are given access to various tools, before asking user for any information, ensure you have fully utilized the tools at your disposal to gather all necessary information. Do not ask the user for information you can obtain through the tools.
+            Always think step-by-step about what information you need and how to get it using the tools. if the user asks for information about anything, use the search tool provided to you to find the details about it, but make sure you are able to help your user in any aspect they ask you. You have access to all the information on the planet.
             
         
         """
@@ -220,7 +223,7 @@ class Orchestrator:
             system_instruction = self.system_instruction,
         )
         
-        self.model_name = "gemini-2.5-pro"
+        self.model_name = "gemini-2.5-flash"
         
         
         self.chats = {}
