@@ -1,3 +1,4 @@
 pillow
 flask
 google-genai
+mysql-connector-python

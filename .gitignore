@@ -2,6 +2,9 @@
 __pycache__/
 *.py[codz]
 *$py.class
+# Changes by Risbern:
+AUTHENTICATION_SETUP.md
+check_database.py
 
 # C extensions
 *.so
@@ -205,3 +208,5 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+token.pickle
+credentials.json
