@@ -45,8 +45,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     }
 
-    //Delete a user entry
-    
 
 
     $stmt->close();
