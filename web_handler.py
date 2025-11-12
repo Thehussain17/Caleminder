@@ -47,13 +47,94 @@ class WebHandler:
             else:
                 return jsonify({'error': 'Invalid auth type'}), 400
 
-        @self.app.route("/index.html")  # Main app page (protected)
+        @self.app.route("/index.html")  # Main app page (protected) (Changes by risbern)
         def index():
             # Check if user is authenticated
             if not session.get('authenticated'):
                 return redirect(url_for('auth_page'))
             # This is the page users see after logging in
             return render_template('index.html')
+
+        @self.app.route('/profile')
+        def profile_page():
+            # Protected profile page
+            if not session.get('authenticated'):
+                return redirect(url_for('auth_page'))
+            return render_template('profile.html')
+
+        @self.app.route('/api/profile', methods=['GET'])
+        def api_get_profile():
+            """Return current user profile as JSON (requires Flask session)"""
+            if not session.get('authenticated'):
+                return jsonify({'error': 'Not authenticated'}), 401
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'No user id in session'}), 400
+
+            conn = self.get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Database connection failed'}), 500
+
+            try:
+                cur = conn.cursor(dictionary=True)
+                cur.execute('SELECT id, firstname, lastname, username, email FROM users WHERE id = %s', (user_id,))
+                user = cur.fetchone()
+                cur.close()
+                conn.close()
+                if not user:
+                    return jsonify({'error': 'User not found'}), 404
+                return jsonify({'user': user}), 200
+            except Error as e:
+                print(f"Error fetching profile: {e}")
+                return jsonify({'error': 'Failed to fetch profile'}), 500
+
+        @self.app.route('/api/profile', methods=['POST'])
+        def api_update_profile():
+            """Update current user profile (name, username, optional password)"""
+            if not session.get('authenticated'):
+                return jsonify({'error': 'Not authenticated'}), 401
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'No user id in session'}), 400
+
+            firstname = request.form.get('firstname', '').strip()
+            lastname = request.form.get('lastname', '').strip()
+            username = request.form.get('username', '').strip()
+            password = request.form.get('password', '')
+
+            if not all([firstname, lastname, username]):
+                return jsonify({'error': 'firstname, lastname and username are required'}), 400
+
+            conn = self.get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Database connection failed'}), 500
+
+            try:
+                cur = conn.cursor()
+                # Check username uniqueness (exclude current user)
+                cur.execute('SELECT id FROM users WHERE username = %s AND id != %s', (username, user_id))
+                if cur.fetchone():
+                    cur.close()
+                    conn.close()
+                    return jsonify({'error': 'Username already taken'}), 400
+
+                if password:
+                    # Hash password using MD5 to match existing scheme (recommend upgrading later)
+                    password_hash = hashlib.md5(password.encode()).hexdigest()
+                    cur.execute('UPDATE users SET firstname=%s, lastname=%s, username=%s, password=%s WHERE id=%s',
+                                (firstname, lastname, username, password_hash, user_id))
+                else:
+                    cur.execute('UPDATE users SET firstname=%s, lastname=%s, username=%s WHERE id=%s',
+                                (firstname, lastname, username, user_id))
+                conn.commit()
+                cur.close()
+                conn.close()
+                return jsonify({'success': True, 'message': 'Profile updated'}), 200
+            except Error as e:
+                print(f"Error updating profile: {e}")
+                return jsonify({'error': 'Failed to update profile: ' + str(e)}), 500
 
         @self.app.route("/chat", methods=['POST'])
         def chat():

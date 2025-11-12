@@ -24,34 +24,78 @@
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
 
-    <div class="flex flex-col w-full max-w-2xl h-[95vh] bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700">
-        <div class="p-4 border-b border-gray-700 text-center">
-            <h1 class="text-xl font-bold">Caleminder</h1>
-            <p class="text-xs text-gray-400">Your intelligent scheduling partner</p>
-        </div>
+    <div class="flex flex-col w-full max-w-2xl h-[95vh] bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
 
+        <!-- ====== HEADER BAR ====== -->
+        <header class="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-gray-800/60">
+            <div class="flex items-center gap-2">
+                <div class="bg-indigo-600 p-2 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 8V4H8"/><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold leading-tight">Caleminder</h1>
+                    <p class="text-xs text-gray-400">Your intelligent scheduling partner</p>
+                </div>
+            </div>
+
+            <!-- Right-side buttons -->
+            <div class="flex items-center gap-3">
+                <!-- Chat History button (placeholder) -->
+                <button id="history-btn" class="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    History
+                </button>
+
+                <!-- Profile button -->
+                <a href="/profile" class="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M6 20a6 6 0 0 1 12 0"/>
+                    </svg>
+                    Profile
+                </a>
+            </div>
+        </header>
+        <!-- ====== END HEADER ====== -->
+
+        <!-- ====== CHAT WINDOW ====== -->
         <div id="chat-window" class="flex-1 p-6 overflow-y-auto space-y-6">
             <div class="flex items-start gap-3">
-                <div class="bg-indigo-600 p-2 rounded-full flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/></svg></div>
+                <div class="bg-indigo-600 p-2 rounded-full flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 8V4H8"/><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/>
+                    </svg>
+                </div>
                 <div class="bg-gray-700 p-3 rounded-lg max-w-md">
                     <p class="text-sm">Hello! Describe an event you'd like to schedule, or upload an image of a timetable.</p>
                 </div>
             </div>
         </div>
 
-        <div class="p-4 border-t border-gray-700">
+        <!-- ====== INPUT BAR ====== -->
+        <div class="p-4 border-t border-gray-700 bg-gray-800/60">
             <div id="image-preview-container" class="mb-2 text-center hidden bg-gray-700 p-2 rounded-lg">
                 <span id="image-preview-name" class="text-xs text-gray-300"></span>
                 <button id="remove-image-btn" class="ml-2 text-red-400 text-xs font-bold">[ X ]</button>
             </div>
             <form id="chat-form" class="flex items-center gap-3">
                 <label for="image-upload" class="cursor-pointer p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+                    </svg>
                     <input type="file" id="image-upload" class="hidden" accept="image/*">
                 </label>
-                <input type="text" id="message-input" placeholder="e.g., Team meeting tomorrow at 4pm for 1 hour" class="flex-1 bg-gray-700 border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
-                <button type="submit" id="submit-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold p-3 rounded-lg transition-colors w-16 h-12 flex items-center justify-center">
-                    <svg id="send-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                <input type="text" id="message-input" placeholder="e.g., Team meeting tomorrow at 4pm for 1 hour"
+                    class="flex-1 bg-gray-700 border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+                <button type="submit" id="submit-btn"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold p-3 rounded-lg transition-colors w-16 h-12 flex items-center justify-center">
+                    <svg id="send-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon
+                        points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     <div id="loading-spinner" class="spinner hidden"></div>
                 </button>
             </form>
@@ -95,9 +139,7 @@
 
             const formData = new FormData();
             formData.append('message', userMessage);
-            if (attachedFile) {
-                formData.append('image', attachedFile);
-            }
+            if (attachedFile) formData.append('image', attachedFile);
 
             appendMessage(userMessage, 'user', attachedFile ? attachedFile.name : null);
             resetInput();
@@ -145,11 +187,23 @@
                 messageWrapper.innerHTML = `<div class="bg-indigo-600 p-3 rounded-lg max-w-md">${content}</div>`;
             } else {
                 messageWrapper.className = 'flex items-start gap-3';
-                messageWrapper.innerHTML = `<div class="bg-gray-700 p-2 rounded-full flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/></svg></div><div class="bg-gray-700 p-3 rounded-lg max-w-md">${content}</div>`;
+                messageWrapper.innerHTML = `
+                    <div class="bg-gray-700 p-2 rounded-full flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 8V4H8"/><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/>
+                        </svg>
+                    </div>
+                    <div class="bg-gray-700 p-3 rounded-lg max-w-md">${content}</div>`;
             }
             chatWindow.appendChild(messageWrapper);
             chatWindow.scrollTop = chatWindow.scrollHeight;
         }
+
+        // Placeholder for History button
+        document.getElementById('history-btn').addEventListener('click', () => {
+            alert('Chat history feature coming soon!');
+        });
     </script>
 </body>
 </html>
