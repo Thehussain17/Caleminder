@@ -136,6 +136,38 @@ class WebHandler:
                 print(f"Error updating profile: {e}")
                 return jsonify({'error': 'Failed to update profile: ' + str(e)}), 500
 
+        @self.app.route('/api/delete-account', methods=['POST'])
+        def api_delete_account():
+            """Delete the current user's account and all associated data"""
+            if not session.get('authenticated'):
+                return jsonify({'error': 'Not authenticated'}), 401
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'No user id in session'}), 400
+
+            conn = self.get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Database connection failed'}), 500
+
+            try:
+                cur = conn.cursor()
+                # Delete the user from the database
+                cur.execute('DELETE FROM users WHERE id = %s', (user_id,))
+                conn.commit()
+                cur.close()
+                conn.close()
+
+                print(f"User account deleted: id={user_id}")
+
+                # Clear session
+                session.clear()
+
+                return jsonify({'success': True, 'message': 'Account deleted successfully'}), 200
+            except Error as e:
+                print(f"Error deleting account: {e}")
+                return jsonify({'error': 'Failed to delete account: ' + str(e)}), 500
+
         @self.app.route("/chat", methods=['POST'])
         def chat():
             user_id = request.form.get("user_id", "hackathon_user")

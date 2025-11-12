@@ -66,9 +66,17 @@
 
     <div id="message" class="mt-4 text-center text-sm"></div>
 
-    <div class="text-center mt-6">
-      <a href="/index.html" class="text-indigo-400 hover:text-indigo-300 text-sm transition">← Back to Caleminder</a>
+    <div class="text-center mt-6 space-y-3">
+      <div>
+        <a href="/index.html" class="text-indigo-400 hover:text-indigo-300 text-sm transition">← Back to Caleminder</a>
+      </div>
+      <div class="delete-acc">
+        <button type="button" id="deleteAccountBtn" class="text-red-400 hover:text-red-300 text-sm transition">
+          Delete account
+        </button>
+      </div>
     </div>
+
   </div>
 
   <script>
@@ -170,7 +178,31 @@
           }, 1000);
         });
       }
+
+      // Delete account handler
+      document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
+        const confirmed = confirm(
+          'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.'
+        );
+        if (!confirmed) return;
+
+        try {
+          const res = await fetch('/api/delete-account', { method: 'POST' });
+          const result = await res.json();
+          if (res.ok) {
+            showMessage('Account deleted successfully. Redirecting...', 'success');
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 2000);
+          } else {
+            showMessage(result.error || 'Failed to delete account', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          showMessage('Error deleting account', 'error');
+        }
+      });
     });
   </script>
 </body>
-</html>
+</html>);
