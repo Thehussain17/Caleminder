@@ -5,6 +5,8 @@ from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from tzlocal import get_localzone
+import mysql.connector
+
 
 # Define only the scope needed for this tool
 SCOPES = [
@@ -68,6 +70,8 @@ class GoogleTodoTools:
                 maxResults=20
             ).execute()
             
+            
+
             tasks = results.get('items', [])
             if not tasks:
                 return {"status": "success", "tasks": [], "message": "You have no tasks due today."}

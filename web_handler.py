@@ -181,6 +181,105 @@ class WebHandler:
                 print(f"Error deleting account: {e}")
                 return jsonify({'error': 'Failed to delete account: ' + str(e)}), 500
 
+        @self.app.route('/api/upcoming-tasks', methods=['GET'])
+        def api_get_upcoming_tasks():
+            """Fetch pending and upcoming tasks for the current user"""
+            if not session.get('authenticated'):
+                return jsonify({'error': 'Not authenticated'}), 401
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'No user id in session'}), 400
+
+            conn = self.get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Database connection failed'}), 500
+
+            try:
+                cur = conn.cursor(dictionary=True)
+                # Fetch pending and scheduled tasks for this user, ordered by scheduled_time
+                query = """
+                    SELECT 
+                        st.id,
+                        st.user_id,
+                        st.task_type,
+                        st.task_title,
+                        st.task_description,
+                        st.scheduled_time,
+                        st.status,
+                        st.retry_count,
+                        st.created_at,
+                        u.firstname,
+                        u.lastname,
+                        u.username,
+                        u.email
+                    FROM scheduled_tasks st
+                    JOIN users u ON st.user_id = u.id
+                    WHERE st.user_id = %s AND st.status IN ('pending', 'scheduled')
+                    ORDER BY st.scheduled_time ASC
+                """
+                cur.execute(query, (user_id,))
+                tasks = cur.fetchall()
+                cur.close()
+                conn.close()
+
+                # Convert TIMESTAMP to string for JSON serialization
+                for task in tasks:
+                    if task['scheduled_time']:
+                        task['scheduled_time'] = task['scheduled_time'].isoformat()
+                    if task['created_at']:
+                        task['created_at'] = task['created_at'].isoformat()
+
+                return jsonify({'tasks': tasks}), 200
+            except Error as e:
+                print(f"Error fetching tasks: {e}")
+                return jsonify({'error': 'Failed to fetch tasks: ' + str(e)}), 500
+
+        @self.app.route('/api/upcoming-tasks', methods=['POST'])
+        def api_create_task():
+            """Create a new task for the current user"""
+            if not session.get('authenticated'):
+                return jsonify({'error': 'Not authenticated'}), 401
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'No user id in session'}), 400
+
+            task_type = request.form.get('task_type', '').strip()
+            task_title = request.form.get('task_title', '').strip()
+            task_description = request.form.get('task_description', '').strip()
+            scheduled_time = request.form.get('scheduled_time', '').strip()
+
+            if not all([task_type, task_title, scheduled_time]):
+                return jsonify({'error': 'task_type, task_title and scheduled_time are required'}), 400
+
+            conn = self.get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Database connection failed'}), 500
+
+            try:
+                cur = conn.cursor()
+                insert_query = """
+                    INSERT INTO scheduled_tasks 
+                    (user_id, task_type, task_title, task_description, scheduled_time, status)
+                    VALUES (%s, %s, %s, %s, %s, 'pending')
+                """
+                print(f"Inserting task - user_id: {user_id}, task_type: {task_type}, task_title: {task_title}, scheduled_time: {scheduled_time}")
+                cur.execute(insert_query, (user_id, task_type, task_title, task_description, scheduled_time))
+                conn.commit()
+                task_id = cur.lastrowid
+                
+                print(f"Task created successfully: id={task_id}, user_id={user_id}")
+                
+                cur.close()
+                conn.close()
+
+                return jsonify({'success': True, 'task_id': task_id, 'message': 'Task created successfully'}), 200
+            except Error as e:
+                print(f"Error creating task: {type(e).__name__} - {e}")
+                conn.close()
+                return jsonify({'error': f'Failed to create task: {str(e)}'}), 500
+
         @self.app.route("/chat", methods=['POST'])
         def chat():
             user_id = request.form.get("user_id", "hackathon_user")

@@ -1,209 +1,440 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caleminder</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        #chat-window::-webkit-scrollbar { width: 6px; }
-        #chat-window::-webkit-scrollbar-track { background: transparent; }
-        #chat-window::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 3px; }
-        .spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Caleminder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    #chat-window::-webkit-scrollbar { width: 6px; }
+    #chat-window::-webkit-scrollbar-track { background: transparent; }
+    #chat-window::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 3px; }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Sidebar slide animation */
+    #history-sidebar {
+      transition: transform 0.3s ease-in-out;
+    }
+    #history-sidebar.hidden {
+      transform: translateX(-100%);
+    }
+  </style>
 </head>
+
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
 
-    <div class="flex flex-col w-full max-w-2xl h-[95vh] bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
+  <!-- ====== MAIN CHAT CONTAINER ====== -->
+  <div class="flex flex-col w-full max-w-2xl h-[95vh] bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700 overflow-hidden relative">
 
-        <!-- ====== HEADER BAR ====== -->
-        <header class="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-gray-800/60">
-            <div class="flex items-center gap-2">
-                <div class="bg-indigo-600 p-2 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 8V4H8"/><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="text-lg font-bold leading-tight">Caleminder</h1>
-                    <p class="text-xs text-gray-400">Your intelligent scheduling partner</p>
-                </div>
-            </div>
-
-            <!-- Right-side buttons -->
-            <div class="flex items-center gap-3">
-                <!-- Chat History button (placeholder) -->
-                <button id="history-btn" class="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    History
-                </button>
-
-                <!-- Profile button -->
-                <a href="/profile" class="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <circle cx="12" cy="8" r="4"/>
-                        <path d="M6 20a6 6 0 0 1 12 0"/>
-                    </svg>
-                    Profile
-                </a>
-            </div>
-        </header>
-        <!-- ====== END HEADER ====== -->
-
-        <!-- ====== CHAT WINDOW ====== -->
-        <div id="chat-window" class="flex-1 p-6 overflow-y-auto space-y-6">
-            <div class="flex items-start gap-3">
-                <div class="bg-indigo-600 p-2 rounded-full flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 8V4H8"/><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/>
-                    </svg>
-                </div>
-                <div class="bg-gray-700 p-3 rounded-lg max-w-md">
-                    <p class="text-sm">Hello! Describe an event you'd like to schedule, or upload an image of a timetable.</p>
-                </div>
-            </div>
+    <!-- ====== HEADER BAR ====== -->
+    <header class="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-gray-800/60">
+      <div class="flex items-center gap-2">
+        <div class="bg-indigo-600 p-2 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 8V4H8" />
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+            <path d="M4 12h16" />
+          </svg>
         </div>
-
-        <!-- ====== INPUT BAR ====== -->
-        <div class="p-4 border-t border-gray-700 bg-gray-800/60">
-            <div id="image-preview-container" class="mb-2 text-center hidden bg-gray-700 p-2 rounded-lg">
-                <span id="image-preview-name" class="text-xs text-gray-300"></span>
-                <button id="remove-image-btn" class="ml-2 text-red-400 text-xs font-bold">[ X ]</button>
-            </div>
-            <form id="chat-form" class="flex items-center gap-3">
-                <label for="image-upload" class="cursor-pointer p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
-                    </svg>
-                    <input type="file" id="image-upload" class="hidden" accept="image/*">
-                </label>
-                <input type="text" id="message-input" placeholder="e.g., Team meeting tomorrow at 4pm for 1 hour"
-                    class="flex-1 bg-gray-700 border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
-                <button type="submit" id="submit-btn"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold p-3 rounded-lg transition-colors w-16 h-12 flex items-center justify-center">
-                    <svg id="send-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon
-                        points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                    <div id="loading-spinner" class="spinner hidden"></div>
-                </button>
-            </form>
+        <div>
+          <h1 class="text-lg font-bold leading-tight">Caleminder</h1>
+          <p class="text-xs text-gray-400">Your intelligent scheduling partner</p>
         </div>
+      </div>
+
+      <!-- Right-side buttons -->
+      <div class="flex items-center gap-3">
+        <!-- Upcoming Tasks button -->
+        <button id="tasks-btn"
+                class="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none"
+               stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Upcoming Tasks
+        </button>
+
+        <!-- Profile button -->
+        <a href="/profile"
+           class="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none"
+               stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M6 20a6 6 0 0 1 12 0" />
+          </svg>
+          Profile
+        </a>
+      </div>
+    </header>
+
+    <!-- ====== CHAT WINDOW ====== -->
+    <div id="chat-window" class="flex-1 p-6 overflow-y-auto space-y-6">
+      <div class="flex items-start gap-3">
+        <div class="bg-indigo-600 p-2 rounded-full flex-shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 8V4H8" />
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+            <path d="M4 12h16" />
+          </svg>
+        </div>
+        <div class="bg-gray-700 p-3 rounded-lg max-w-md">
+          <p class="text-sm">Hello! Describe an event you'd like to schedule, or upload an image of a timetable.</p>
+        </div>
+      </div>
     </div>
 
-    <script>
-        const chatWindow = document.getElementById('chat-window');
-        const chatForm = document.getElementById('chat-form');
-        const messageInput = document.getElementById('message-input');
-        const imageUpload = document.getElementById('image-upload');
-        const imagePreviewContainer = document.getElementById('image-preview-container');
-        const imagePreviewName = document.getElementById('image-preview-name');
-        const removeImageBtn = document.getElementById('remove-image-btn');
-        const submitBtn = document.getElementById('submit-btn');
-        const sendIcon = document.getElementById('send-icon');
-        const loadingSpinner = document.getElementById('loading-spinner');
+    <!-- ====== INPUT BAR ====== -->
+    <div class="p-4 border-t border-gray-700 bg-gray-800/60">
+      <div id="image-preview-container" class="mb-2 text-center hidden bg-gray-700 p-2 rounded-lg">
+        <span id="image-preview-name" class="text-xs text-gray-300"></span>
+        <button id="remove-image-btn" class="ml-2 text-red-400 text-xs font-bold">[ X ]</button>
+      </div>
+      <form id="chat-form" class="flex items-center gap-3">
+        <label for="image-upload"
+               class="cursor-pointer p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <path d="M21 15l-5-5L5 21" />
+          </svg>
+          <input type="file" id="image-upload" class="hidden" accept="image/*" />
+        </label>
+        <input type="text" id="message-input"
+               placeholder="e.g., Team meeting tomorrow at 4pm for 1 hour"
+               class="flex-1 bg-gray-700 border-gray-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" />
+        <button type="submit" id="submit-btn"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold p-3 rounded-lg transition-colors w-16 h-12 flex items-center justify-center">
+          <svg id="send-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+               viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+          <div id="loading-spinner" class="spinner hidden"></div>
+        </button>
+      </form>
+    </div>
+  </div>
 
-        let attachedFile = null;
+  <!-- ====== UPCOMING TASKS MODAL ====== -->
+  <div id="tasks-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="flex flex-col w-full max-w-2xl max-h-[85vh] bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-gray-800/80">
+        <h2 class="text-xl font-bold">Upcoming Tasks</h2>
+        <button id="close-tasks-modal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+      </div>
 
-        imageUpload.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                attachedFile = e.target.files[0];
-                imagePreviewName.textContent = attachedFile.name;
-                imagePreviewContainer.classList.remove('hidden');
-            }
-        });
+      <!-- Modal Content -->
+      <div id="tasks-list" class="flex-1 overflow-y-auto p-6 space-y-4">
+        <!-- Tasks will be loaded here -->
+        <div class="text-center text-gray-400">Loading tasks...</div>
+      </div>
 
-        removeImageBtn.addEventListener('click', () => {
-            attachedFile = null;
-            imageUpload.value = '';
-            imagePreviewContainer.classList.add('hidden');
-        });
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-gray-700 bg-gray-800/80 flex gap-3">
+        <button id="create-task-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg font-semibold transition">
+          + Add Task
+        </button>
+        <button id="close-tasks-btn" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-semibold transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
 
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const userMessage = messageInput.value.trim();
-            if (!userMessage && !attachedFile) return;
+  <!-- ====== CREATE TASK MODAL ====== -->
+  <div id="create-task-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="flex flex-col w-full max-w-md bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-gray-800/80">
+        <h2 class="text-xl font-bold">Create Task</h2>
+        <button id="close-create-task-modal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+      </div>
 
-            setLoading(true);
+      <!-- Modal Content -->
+      <form id="create-task-form" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Task Type</label>
+          <select id="task-type" name="task_type" required
+            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm">
+            <option value="">Select task type...</option>
+            <option value="morning_briefing">Morning Briefing</option>
+            <option value="reminder">Reminder</option>
+            <option value="meeting">Meeting</option>
+            <option value="event">Event</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
 
-            const formData = new FormData();
-            formData.append('message', userMessage);
-            if (attachedFile) formData.append('image', attachedFile);
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Task Title</label>
+          <input type="text" id="task-title" name="task_title" placeholder="e.g., Team standup" required
+            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm">
+        </div>
 
-            appendMessage(userMessage, 'user', attachedFile ? attachedFile.name : null);
-            resetInput();
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Description (optional)</label>
+          <textarea id="task-description" name="task_description" placeholder="Add details..."
+            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm" rows="3"></textarea>
+        </div>
 
-            try {
-                const response = await fetch('/chat', { method: 'POST', body: formData });
-                const data = await response.json();
-                appendMessage(data.response, 'ai');
-            } catch (error) {
-                console.error('Error:', error);
-                appendMessage('Sorry, something went wrong. Please check the console.', 'ai');
-            } finally {
-                setLoading(false);
-            }
-        });
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Scheduled Time</label>
+          <input type="datetime-local" id="task-time" name="scheduled_time" required
+            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm">
+        </div>
 
-        function setLoading(isLoading) {
-            if (isLoading) {
-                submitBtn.disabled = true;
-                sendIcon.classList.add('hidden');
-                loadingSpinner.classList.remove('hidden');
-            } else {
-                submitBtn.disabled = false;
-                sendIcon.classList.remove('hidden');
-                loadingSpinner.classList.add('hidden');
-            }
+        <div class="flex gap-3 pt-4">
+          <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg font-semibold transition">
+            Create Task
+          </button>
+          <button type="button" id="cancel-create-task" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-semibold transition">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+    </div>
+  </div>
+
+  <!-- ====== SCRIPT ====== -->
+  <script>
+    const chatWindow = document.getElementById('chat-window');
+    const chatForm = document.getElementById('chat-form');
+    const messageInput = document.getElementById('message-input');
+    const imageUpload = document.getElementById('image-upload');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+    const imagePreviewName = document.getElementById('image-preview-name');
+    const removeImageBtn = document.getElementById('remove-image-btn');
+    const submitBtn = document.getElementById('submit-btn');
+    const sendIcon = document.getElementById('send-icon');
+    const loadingSpinner = document.getElementById('loading-spinner');
+
+    const historyBtn = document.getElementById('history-btn');
+    const historySidebar = document.getElementById('history-sidebar');
+    const closeHistory = document.getElementById('close-history');
+    const historyList = document.getElementById('history-list');
+
+    let attachedFile = null;
+
+    // ===== Image Upload Preview =====
+    imageUpload.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        attachedFile = e.target.files[0];
+        imagePreviewName.textContent = attachedFile.name;
+        imagePreviewContainer.classList.remove('hidden');
+      }
+    });
+
+    removeImageBtn.addEventListener('click', () => {
+      attachedFile = null;
+      imageUpload.value = '';
+      imagePreviewContainer.classList.add('hidden');
+    });
+
+    // ===== Chat Submit =====
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userMessage = messageInput.value.trim();
+      if (!userMessage && !attachedFile) return;
+
+      setLoading(true);
+      const formData = new FormData();
+      formData.append('message', userMessage);
+      if (attachedFile) formData.append('image', attachedFile);
+
+      appendMessage(userMessage, 'user', attachedFile ? attachedFile.name : null);
+      resetInput();
+
+      try {
+        const response = await fetch('/chat', { method: 'POST', body: formData });
+        const data = await response.json();
+        appendMessage(data.response, 'ai');
+      } catch (error) {
+        console.error('Error:', error);
+        appendMessage('Sorry, something went wrong.', 'ai');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      sendIcon.classList.toggle('hidden', isLoading);
+      loadingSpinner.classList.toggle('hidden', !isLoading);
+    }
+
+    function resetInput() {
+      messageInput.value = '';
+      attachedFile = null;
+      imageUpload.value = '';
+      imagePreviewContainer.classList.add('hidden');
+    }
+
+    function appendMessage(text, sender, imageName = null) {
+      const messageWrapper = document.createElement('div');
+      let content = `<p class="text-sm">${text.replace(/\n/g, '<br>')}</p>`;
+      if (imageName) {
+        content += `<p class="text-xs mt-2 text-gray-400 border-t border-gray-600 pt-2">Attached: ${imageName}</p>`;
+      }
+      if (sender === 'user') {
+        messageWrapper.className = 'flex items-start gap-3 justify-end';
+        messageWrapper.innerHTML = `<div class="bg-indigo-600 p-3 rounded-lg max-w-md">${content}</div>`;
+      } else {
+        messageWrapper.className = 'flex items-start gap-3';
+        messageWrapper.innerHTML = `
+          <div class="bg-gray-700 p-2 rounded-full flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 8V4H8"/><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/>
+            </svg>
+          </div>
+          <div class="bg-gray-700 p-3 rounded-lg max-w-md">${content}</div>`;
+      }
+      chatWindow.appendChild(messageWrapper);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    // ===== TASKS MODAL HANDLERS =====
+    const tasksBtn = document.getElementById('tasks-btn');
+    const tasksModal = document.getElementById('tasks-modal');
+    const closeTasksModal = document.getElementById('close-tasks-modal');
+    const closeTasksBtn = document.getElementById('close-tasks-btn');
+    const createTaskBtn = document.getElementById('create-task-btn');
+    const createTaskModal = document.getElementById('create-task-modal');
+    const closeCreateTaskModal = document.getElementById('close-create-task-modal');
+    const cancelCreateTaskBtn = document.getElementById('cancel-create-task');
+    const createTaskForm = document.getElementById('create-task-form');
+    const tasksList = document.getElementById('tasks-list');
+
+    // Open tasks modal and load tasks
+    tasksBtn.addEventListener('click', async () => {
+      tasksModal.classList.remove('hidden');
+      await loadUpcomingTasks();
+    });
+
+    // Close tasks modal
+    const closeTasksModals = () => {
+      tasksModal.classList.add('hidden');
+      createTaskModal.classList.add('hidden');
+    };
+    closeTasksModal.addEventListener('click', closeTasksModals);
+    closeTasksBtn.addEventListener('click', closeTasksModals);
+
+    // Open create task modal
+    createTaskBtn.addEventListener('click', () => {
+      createTaskModal.classList.remove('hidden');
+    });
+
+    // Close create task modal
+    closeCreateTaskModal.addEventListener('click', () => {
+      createTaskModal.classList.add('hidden');
+      createTaskForm.reset();
+    });
+    cancelCreateTaskBtn.addEventListener('click', () => {
+      createTaskModal.classList.add('hidden');
+      createTaskForm.reset();
+    });
+
+    // Load upcoming tasks
+    async function loadUpcomingTasks() {
+      tasksList.innerHTML = '<div class="text-center text-gray-400">Loading tasks...</div>';
+      try {
+        const res = await fetch('/api/upcoming-tasks');
+        const data = await res.json();
+        
+        if (!res.ok) {
+          tasksList.innerHTML = `<div class="text-center text-red-400">${data.error || 'Failed to load tasks'}</div>`;
+          return;
         }
 
-        function resetInput() {
-            messageInput.value = '';
-            attachedFile = null;
-            imageUpload.value = '';
-            imagePreviewContainer.classList.add('hidden');
+        const tasks = data.tasks;
+        if (tasks.length === 0) {
+          tasksList.innerHTML = '<div class="text-center text-gray-400">No upcoming tasks. Create one to get started!</div>';
+          return;
         }
 
-        function appendMessage(text, sender, imageName = null) {
-            const messageWrapper = document.createElement('div');
-            let content = `<p class="text-sm">${text.replace(/\n/g, '<br>')}</p>`;
-            if (imageName) {
-                content += `<p class="text-xs mt-2 text-gray-400 border-t border-gray-600 pt-2">Attached: ${imageName}</p>`;
-            }
+        tasksList.innerHTML = tasks.map(task => `
+          <div class="p-4 bg-gray-700/50 border border-gray-600 rounded-lg hover:border-indigo-500 transition">
+            <div class="flex items-start justify-between mb-2">
+              <div>
+                <h3 class="text-lg font-semibold">${escapeHtml(task.task_title)}</h3>
+                <p class="text-xs text-gray-400">${escapeHtml(task.task_type)}</p>
+              </div>
+              <span class="px-2 py-1 text-xs font-semibold rounded ${
+                task.status === 'pending' ? 'bg-yellow-600/50 text-yellow-200' :
+                task.status === 'scheduled' ? 'bg-blue-600/50 text-blue-200' :
+                'bg-gray-600/50 text-gray-200'
+              }">${task.status}</span>
+            </div>
+            ${task.task_description ? `<p class="text-sm text-gray-300 mb-2">${escapeHtml(task.task_description)}</p>` : ''}
+            <div class="text-xs text-gray-400 space-y-1">
+              <p><strong>Scheduled:</strong> ${new Date(task.scheduled_time).toLocaleString()}</p>
+              <p><strong>User:</strong> ${escapeHtml(task.firstname)} ${escapeHtml(task.lastname)} (@${escapeHtml(task.username)})</p>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading tasks:', error);
+        tasksList.innerHTML = '<div class="text-center text-red-400">Error loading tasks</div>';
+      }
+    }
 
-            if (sender === 'user') {
-                messageWrapper.className = 'flex items-start gap-3 justify-end';
-                messageWrapper.innerHTML = `<div class="bg-indigo-600 p-3 rounded-lg max-w-md">${content}</div>`;
-            } else {
-                messageWrapper.className = 'flex items-start gap-3';
-                messageWrapper.innerHTML = `
-                    <div class="bg-gray-700 p-2 rounded-full flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 8V4H8"/><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/>
-                        </svg>
-                    </div>
-                    <div class="bg-gray-700 p-3 rounded-lg max-w-md">${content}</div>`;
-            }
-            chatWindow.appendChild(messageWrapper);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
-        }
+    // Create new task
+    createTaskForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const taskType = document.getElementById('task-type').value;
+      const taskTitle = document.getElementById('task-title').value;
+      const taskDescription = document.getElementById('task-description').value;
+      const scheduledTime = document.getElementById('task-time').value;
 
-        // Placeholder for History button
-        document.getElementById('history-btn').addEventListener('click', () => {
-            alert('Chat history feature coming soon!');
+      try {
+        const formData = new FormData();
+        formData.append('task_type', taskType);
+        formData.append('task_title', taskTitle);
+        formData.append('task_description', taskDescription);
+        formData.append('scheduled_time', scheduledTime);
+
+        const res = await fetch('/api/upcoming-tasks', {
+          method: 'POST',
+          body: formData
         });
-    </script>
+        const result = await res.json();
+
+        if (res.ok) {
+          alert('Task created successfully!');
+          createTaskForm.reset();
+          createTaskModal.classList.add('hidden');
+          await loadUpcomingTasks();
+        } else {
+          alert(result.error || 'Failed to create task');
+        }
+      } catch (error) {
+        console.error('Error creating task:', error);
+        alert('Error creating task');
+      }
+    });
+
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
 </body>
 </html>
