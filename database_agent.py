@@ -83,18 +83,18 @@ Generate efficient SQL. Minimize token usage.
         database_tool_declaration = types.FunctionDeclaration(
             name="execute_query",
             description="Executes a SQL query against the PostgreSQL database and returns the results as JSON.",
-            parameters=types.FunctionParameters(
-                type=types.FunctionParameterType.OBJECT,
+            parameters=types.Schema(
+                type=types.SchemaType.OBJECT,
                 properties={
-                    "sql_string": types.FunctionParameter(
-                        type=types.FunctionParameterType.STRING,
-                        description="The SQL query string to execute. Must adhere to the defined database schema."
+                    "sql_string": types.SchemaProperty(
+                        type=types.SchemaType.STRING,
+                        description="The SQL query string to execute."
                     )
                 },
-                required=["sql_string"]            
-            )
-        )
+                required=["sql_string"]
 
+        )
+        )
         
         
         print("Database Agent initialized.")
