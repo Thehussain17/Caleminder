@@ -27,6 +27,7 @@ class WebHandler:
             print(f"Database connection error: {e}")
             return None
         
+        
     def execute_query(self, query, params=None):
         """Execute a given SQL query with optional parameters"""
         cursor = self.connection.cursor()

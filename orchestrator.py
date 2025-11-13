@@ -41,13 +41,13 @@ class Orchestrator:
         
         database_declaration = types.FunctionDeclaration(
             name="access_database",
-            description="Use this tool to find information or update the information stored in the user's personal database. You do not have to create queries, you just have to tell in plain english what you want",
+            description="Use this tool to find information or update the information stored in the user's personal database. You do not have to create queries, you just have to tell in plain english what you want there are 5 tables, users, user_memory, messages, scheduled tasks and conversations, specify the table name when you need any info",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
-                    "sql_query": types.Schema(type=types.Type.STRING, description="what information is needed from the database")
+                    "sql_string": types.Schema(type=types.Type.STRING, description="what information is needed from the database")
                 },
-                required=["sql_query"]
+                required=["sql_string"]
             )
         )
         
