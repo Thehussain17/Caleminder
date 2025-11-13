@@ -80,14 +80,28 @@ OPERATIONAL PROTOCOLS:
 Generate efficient SQL. Minimize token usage.
 
         """
+        database_tool_declaration = types.FunctionDeclaration(
+            name="execute_query",
+            description="Executes a SQL query against the PostgreSQL database and returns the results as JSON.",
+            parameters=types.FunctionParameters(
+                type=types.FunctionParameterType.OBJECT,
+                properties={
+                    "sql_string": types.FunctionParameter(
+                        type=types.FunctionParameterType.STRING,
+                        description="The SQL query string to execute. Must adhere to the defined database schema."
+                    )
+                },
+                required=["sql_string"]            
+            )
+        )
 
         
         
         print("Database Agent initialized.")
-        database_tool = WebHandler.execute_query() 
+        
 # Configure generation settings
         self.config = types.GenerateContentConfig(
-            tools=[database_tool],
+            tools=[database_tool_declaration],
             system_instruction=self.system_instruction,
             )
         
