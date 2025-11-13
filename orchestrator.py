@@ -400,10 +400,12 @@ class Orchestrator:
                             tool_to_call = getattr(self.todo_tools, func_name)
                         elif hasattr(self.communication_tools, func_name):
                             tool_to_call = getattr(self.communication_tools, func_name)
-                        elif hasattr(self.user_profile_tools, func_name):
-                            if func_name in ["get_user_profile", "update_user_profile"]:
-                                func_args['user_id'] = user_id
-                            tool_to_call = getattr(self.user_profile_tools, func_name)
+                        # elif hasattr(self.user_profile_tools, func_name):
+                        #     if func_name in ["get_user_profile", "update_user_profile"]:
+                        #         func_args['user_id'] = user_id
+                        #     tool_to_call = getattr(self.user_profile_tools, func_name)
+                        elif hasattr(self.database_agent, func_name):
+                            tool_to_call = getattr(self.database_agent.execute_database_query, func_name)
 
                         if tool_to_call:
                             result = tool_to_call(**func_args)
