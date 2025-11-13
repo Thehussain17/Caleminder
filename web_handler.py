@@ -26,6 +26,19 @@ class WebHandler:
         except Error as e:
             print(f"Database connection error: {e}")
             return None
+        
+    def execute_query(self, query, params=None):
+        """Execute a given SQL query with optional parameters"""
+        cursor = self.connection.cursor()
+        try:
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            self.connection.commit()
+            print("Query executed successfully")
+        except Error as e:
+            print(f"The error '{e}' occurred")
 
     def setup_routes(self):
         @self.app.route("/")  # Entry point - Auth page
