@@ -38,10 +38,10 @@ class Orchestrator:
                 required=["query"]
             )
         )
-
+        
         database_declaration = types.FunctionDeclaration(
-            name="find_information_from_database",
-            description="Use this tool to find information stored in the user's personal database.",
+            name="access_database",
+            description="Use this tool to find information or update the information stored in the user's personal database. You do not have to create queries, you just have to tell in plain english what you want",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
@@ -50,6 +50,7 @@ class Orchestrator:
                 required=["sql_query"]
             )
         )
+        
         # In orchestrator.py, replace the old declaration with this one:
 
         create_event_declaration = types.FunctionDeclaration(
@@ -405,7 +406,7 @@ class Orchestrator:
                         #         func_args['user_id'] = user_id
                         #     tool_to_call = getattr(self.user_profile_tools, func_name)
                         elif hasattr(self.database_agent, func_name):
-                            tool_to_call = getattr(self.database_agent.execute_database_query, func_name)
+                            tool_to_call = getattr(self.database_agent, func_name)
 
                         if tool_to_call:
                             result = tool_to_call(**func_args)

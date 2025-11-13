@@ -481,6 +481,166 @@ class WebHandler:
             except Exception as e:
                 print(f"An error occurred in the web handler: {e}")
                 return jsonify({'response': 'Sorry, a critical error occurred on the server.'}), 500
+
+        @self.app.route('/api/memories', methods=['GET'])
+        def api_get_memories():
+            """Fetch user memories from the database"""
+            if not session.get('authenticated'):
+                return jsonify({'error': 'Not authenticated'}), 401
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'No user id in session'}), 400
+
+            conn = self.get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Database connection failed'}), 500
+
+            try:
+                cur = conn.cursor(dictionary=True)
+                query = """
+                    SELECT id, user_id, category, fact_content, confidence_score
+                    FROM user_memories
+                    WHERE user_id = %s
+                    ORDER BY category, id DESC
+                """
+                cur.execute(query, (user_id,))
+                memories = cur.fetchall()
+                cur.close()
+                conn.close()
+
+                return jsonify({'memories': memories}), 200
+            except Error as e:
+                print(f"Error fetching memories: {e}")
+                return jsonify({'error': 'Failed to fetch memories: ' + str(e)}), 500
+
+        @self.app.route('/api/memories', methods=['POST'])
+        def api_create_memory():
+            """Store a new user memory in the database"""
+            if not session.get('authenticated'):
+                return jsonify({'error': 'Not authenticated'}), 401
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'No user id in session'}), 400
+
+            category = request.form.get('category', '').strip()
+            fact_content = request.form.get('fact_content', '').strip()
+            confidence_score = request.form.get('confidence_score', 1.0)
+
+            if not all([category, fact_content]):
+                return jsonify({'error': 'category and fact_content are required'}), 400
+
+            # Validate confidence score
+            try:
+                confidence_score = float(confidence_score)
+                if not (0 <= confidence_score <= 1):
+                    return jsonify({'error': 'confidence_score must be between 0 and 1'}), 400
+            except (ValueError, TypeError):
+                return jsonify({'error': 'confidence_score must be a valid number'}), 400
+
+            conn = self.get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Database connection failed'}), 500
+
+            try:
+                cur = conn.cursor()
+                insert_query = """
+                    INSERT INTO user_memories 
+                    (user_id, category, fact_content, confidence_score)
+                    VALUES (%s, %s, %s, %s)
+                """
+                print(f"Storing memory - user_id: {user_id}, category: {category}, confidence: {confidence_score}")
+                cur.execute(insert_query, (user_id, category, fact_content, confidence_score))
+                conn.commit()
+                memory_id = cur.lastrowid
+                
+                print(f"Memory stored successfully: id={memory_id}, user_id={user_id}")
+                
+                cur.close()
+                conn.close()
+
+                return jsonify({'success': True, 'memory_id': memory_id, 'message': 'Memory stored successfully'}), 200
+            except Error as e:
+                print(f"Error storing memory: {type(e).__name__} - {e}")
+                conn.close()
+                return jsonify({'error': f'Failed to store memory: {str(e)}'}), 500
+
+        @self.app.route('/api/memories/<int:memory_id>', methods=['DELETE'])
+        def api_delete_memory(memory_id):
+            """Delete a specific user memory"""
+            if not session.get('authenticated'):
+                return jsonify({'error': 'Not authenticated'}), 401
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'No user id in session'}), 400
+
+            conn = self.get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Database connection failed'}), 500
+
+            try:
+                cur = conn.cursor()
+                # Verify memory belongs to user before deleting
+                cur.execute('SELECT user_id FROM user_memories WHERE id = %s', (memory_id,))
+                result = cur.fetchone()
+                
+                if not result or result[0] != user_id:
+                    cur.close()
+                    conn.close()
+                    return jsonify({'error': 'Memory not found or unauthorized'}), 404
+
+                # Delete the memory
+                cur.execute('DELETE FROM user_memories WHERE id = %s', (memory_id,))
+                conn.commit()
+                
+                print(f"Memory deleted successfully: id={memory_id}, user_id={user_id}")
+                
+                cur.close()
+                conn.close()
+
+                return jsonify({'success': True, 'message': 'Memory deleted successfully'}), 200
+            except Error as e:
+                print(f"Error deleting memory: {e}")
+                return jsonify({'error': 'Failed to delete memory: ' + str(e)}), 500
+
+        @self.app.route('/api/memories/query', methods=['POST'])
+        def api_query_memories():
+            """Query user memories by category (used by AI agents)"""
+            if not session.get('authenticated'):
+                return jsonify({'error': 'Not authenticated'}), 401
+
+            user_id = session.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'No user id in session'}), 400
+
+            category = request.form.get('category', '').strip()
+
+            if not category:
+                return jsonify({'error': 'category is required'}), 400
+
+            conn = self.get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Database connection failed'}), 500
+
+            try:
+                cur = conn.cursor(dictionary=True)
+                query = """
+                    SELECT fact_content, confidence_score
+                    FROM user_memories
+                    WHERE user_id = %s AND category = %s
+                    ORDER BY confidence_score DESC
+                """
+                cur.execute(query, (user_id, category))
+                memories = cur.fetchall()
+                cur.close()
+                conn.close()
+
+                return jsonify({'memories': memories}), 200
+            except Error as e:
+                print(f"Error querying memories: {e}")
+                return jsonify({'error': 'Failed to query memories: ' + str(e)}), 500
             
             
 
