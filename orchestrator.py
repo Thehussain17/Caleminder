@@ -7,6 +7,7 @@ from todo_tools import GoogleTodoTools
 from google.genai.types import Tool, GoogleSearch
 from communication_tools import CommunicationTools
 from search_agent import SearchAgent
+from database_agent import DatabaseAgent
 from user_profile_tools import UserProfileTools
 from user_database import UserDB
 import os
@@ -19,7 +20,8 @@ class Orchestrator:
         self.calendar_tools = GoogleCalendarTools()
         self.todo_tools = GoogleTodoTools()
         self.communication_tools = CommunicationTools()  # Placeholder for future communication tools
-        self.search_agent = SearchAgent() # Initialize the Search Agent
+        self.search_agent = SearchAgent()
+        self.database_agent = DatabaseAgent() # Initialize the Search Agent
         
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
 
@@ -34,6 +36,18 @@ class Orchestrator:
                     "query": types.Schema(type=types.Type.STRING, description="The search query (e.g., 'next Lakers game date', 'release date for new Dune movie').")
                 },
                 required=["query"]
+            )
+        )
+
+        database_declaration = types.FunctionDeclaration(
+            name="find_information_from_database",
+            description="Use this tool to find information stored in the user's personal database.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "sql_query": types.Schema(type=types.Type.STRING, description="what information is needed from the database")
+                },
+                required=["sql_query"]
             )
         )
         # In orchestrator.py, replace the old declaration with this one:
@@ -235,7 +249,7 @@ class Orchestrator:
             create_event_declaration, get_events_by_date_declaration, find_event_id_declaration,
             remove_event_declaration, schedule_timetable_declaration, get_upcoming_tasks_declaration,
             put_task_declaration, get_now_declaration, find_contact_declaration, send_email_declaration, search_declaration
-            , delete_task_declaration, mark_task_complete_declaration, find_task_id_declaration
+            , delete_task_declaration, mark_task_complete_declaration, find_task_id_declaration, database_declaration
         ]
         
         
