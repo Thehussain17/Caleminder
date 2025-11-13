@@ -84,10 +84,10 @@ Generate efficient SQL. Minimize token usage.
             name="execute_query",
             description="Executes a SQL query against the PostgreSQL database and returns the results as JSON.",
             parameters=types.Schema(
-                type=types.SchemaType.OBJECT,
+                type=types.Type.OBJECT,
                 properties={
-                    "sql_string": types.SchemaProperty(
-                        type=types.SchemaType.STRING,
+                    "sql_string": types.Schema(
+                        type=types.Type.STRING,
                         description="The SQL query string to execute."
                     )
                 },
