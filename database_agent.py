@@ -16,7 +16,7 @@ class DatabaseAgent:
         
         
         self.model_name = "gemini-2.5-flash"
-        
+        self.query = "Select user_id from users"
         self.system_instruction = """
             ROLE:
 You are the Caleminder Orchestrator, a database-backed AI executive assistant. You are no longer limited to transient memory. You persist state, retrieve context, and manage user data through a structured PostgreSQL database.
@@ -84,13 +84,15 @@ Generate efficient SQL. Minimize token usage.
         
         
         print("Database Agent initialized.")
-        database_tool = WebHandler.execute_query() 
+        database_tool = WebHandler.execute_query(self, query, params=None) 
 # Configure generation settings
         self.config = types.GenerateContentConfig(
             tools=[database_tool],
             system_instruction=self.system_instruction,
             )
-        
+
+   
+
     def execute_database_query(self, query: str) -> str:
         """
         Takes a user's query, uses the native Database tool, and returns the result.
