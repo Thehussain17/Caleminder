@@ -122,7 +122,11 @@ Generate efficient SQL. Minimize token usage.
 
             if response.prompt_feedback and response.prompt_feedback.block_reason:
                 return f"Database query was blocked. Reason: {response.prompt_feedback.block_reason.name}."
-
+            if response.candidates[0].content.parts[0].function_call:
+                function_call = response.candidates[0].content.parts[0].function_call
+                print(f"Function to call: {function_call.name}")
+                print(f"Arguments: {function_call.args}")
+                result = WebHandler.execute_query(**function_call.args)
             if not response.candidates or not response.candidates[0].content.parts:
                  return "Database query returned no results or was blocked."
             result_text = response.candidates[0].content.parts[0].text
