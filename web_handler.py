@@ -4,6 +4,9 @@ import uuid
 import mysql.connector
 from mysql.connector import Error
 import hashlib
+import get_session as gs
+
+
 
 class WebHandler:
     def __init__(self, orchestrator):
@@ -67,7 +70,15 @@ class WebHandler:
             if not session.get('authenticated'):
                 return redirect(url_for('auth_page'))
             # This is the page users see after logging in
+
+
+
+            print(gs.var) #session id
+
+
+            print("This is the session id ")
             return render_template('index.html')
+
 
         @self.app.route('/profile')
         def profile_page():
@@ -325,7 +336,8 @@ class WebHandler:
         """Handle user sign in"""
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
-        
+        # u_id = request.form.get('user_id','')
+
         if not email or not password:
             return jsonify({'error': 'Email and password are required'}), 400
         
@@ -351,8 +363,27 @@ class WebHandler:
                 session['user_id'] = user['id']
                 session['firstname'] = user['firstname']
                 
-                print(f"User logged in successfully: {email}")
+                # print(f"User logged in successfully: {email} and his id is: ")
+                print(session['user_id'])
+                id_qquery = f"SELECT id FROM users WHERE email='{email.strip()}'"
+
+                conn = self.get_db_connection()
+                cur = conn.cursor(dictionary=True)
+                # Fetch pending and scheduled tasks for this user, ordered by scheduled_time
                 
+                cur.execute(id_qquery)
+                id_tasks = cur.fetchall()
+                cur.close()
+                conn.close()
+
+                print(id_tasks)
+
+
+
+
+
+
+
                 # Return success JSON response
                 return jsonify({'success': True, 'message': 'Login successful'}), 200
             else:
@@ -442,6 +473,7 @@ class WebHandler:
                 connection.close()
             except:
                 pass
+        
 
         @self.app.route("/chat", methods=['POST'])
         def chat():

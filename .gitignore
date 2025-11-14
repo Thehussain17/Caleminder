@@ -210,3 +210,9 @@ marimo/_lsp/
 __marimo__/
 token.pickle
 credentials.json
+
+
+
+test.py 
+test.ipynb 
+

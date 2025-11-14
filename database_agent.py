@@ -4,6 +4,12 @@ import mysql.connector
 from mysql.connector import Error
 import config
 import regex as re
+import requests
+import get_session as gs
+# from web_handler import id_tasks
+from flask import session
+
+
 
 class DatabaseAgent:
     def __init__(self):
@@ -108,6 +114,8 @@ return only the sql query directly, DO NOT INCLUDE ANYTHING ELSE IN YOUR RESPONS
         
         print("Database Agent initialized.")
 
+
+
     def get_db_connection(self):
         """Create and return a database connection"""
         try:
@@ -116,7 +124,9 @@ return only the sql query directly, DO NOT INCLUDE ANYTHING ELSE IN YOUR RESPONS
         except Error as e:
             print(f"Database connection error: {e}")
             return None
-
+    def get_user_id(self):
+        uuId= session['user_id']
+        return uuId
     def access_database(self, sql_string: str) -> dict:
         """
         Execute a SQL query against the database.
@@ -128,9 +138,12 @@ return only the sql query directly, DO NOT INCLUDE ANYTHING ELSE IN YOUR RESPONS
 
         # 1. TRY to call the Gemini API to get the SQL query
         try:
+            uuid = session['user_id']
+            additional_prompt = f"THE USER ID IS {uuid}"
+            
             response = self.client.models.generate_content(
                 model=self.model_name,
-                contents=[sql_string],
+                contents=[sql_string + additional_prompt],
                 config=self.config,
                 
             )
