@@ -100,15 +100,8 @@ Use SQL queries efficiently and minimize token usage.
 return only the sql query directly, DO NOT INCLUDE ANYTHING ELSE IN YOUR RESPONSE, NOT EVEN MARKERS TO SHOW THE SQL QUERY, JUST THE SQL QUERY THATS IT.
         """
         
-        # NOTE: self.config was used in the original unnested try block, 
-        # but was not defined in __init__. Assuming it should be an empty 
-        # config or is defined elsewhere outside this snippet. 
-        # Keeping it as 'config={}' for now to avoid a NameError in the 
-        # revised try block, as per instruction not to change logic, 
-        # though this may require review. 
+        
         self.config = types.GenerateContentConfig(
-            # tools=self.tools,
-            # safety_settings=safety_settings,
             system_instruction = self.system_instruction,
         )
         
@@ -134,9 +127,6 @@ return only the sql query directly, DO NOT INCLUDE ANYTHING ELSE IN YOUR RESPONS
         """
         print(f"Database Agent executing query: '{sql_string}'")
 
-        # --- FIX STARTS HERE: Nested try/except for API call and DB execution ---
-
-        # 1. TRY to call the Gemini API to get the SQL query
         try:
             uuid = session['user_id']
             additional_prompt = f"THE USER ID IS {uuid}"
@@ -164,7 +154,6 @@ return only the sql query directly, DO NOT INCLUDE ANYTHING ELSE IN YOUR RESPONS
                 sql_query = match.group(1).strip()
                 print(sql_query)
             else:
-                # Fallback to simple cleaning if no markers are found
                 sql_query = sql_query_i.strip()
                 print("No code block found, returning original string after stripping outer whitespace:\n", sql_query)
                 return "I am sorry master, for I haveth beenth the stupidest there is."
