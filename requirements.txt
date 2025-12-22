@@ -1,3 +1,8 @@
 pillow
 flask
 google-genai
+python-dateutil
+google-api-python-client
+tzlocal
+google-auth-oauthlib
+python-dotenv

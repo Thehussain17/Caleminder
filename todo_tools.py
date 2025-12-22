@@ -1,8 +1,9 @@
 import os
 import pickle
+import json
 import datetime
 from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from tzlocal import get_localzone
 
@@ -15,40 +16,42 @@ SCOPES = [
 ]
 
 class GoogleTodoTools:
-    def __init__(self):
+    def __init__(self, credentials_data=None):
         """Initializes the Google Tasks service."""
-        self.creds = self._get_credentials()
-        self.tasks_service = build('tasks', 'v1', credentials=self.creds)
-        if not self.tasks_service:
-            raise ConnectionError("Failed to connect to Google Tasks. Check credentials.json.")
+        self.tasks_service = None
+        if credentials_data:
+            self.authenticate(credentials_data)
 
-    def _get_credentials(self):
-        """Handles user authentication and token management."""
-        creds = None
-        if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
-                creds = pickle.load(token)
-        if not creds or not creds.valid:
+    def authenticate(self, credentials_data):
+        """
+        Authenticates the user using provided credentials data.
+        """
+        try:
+            if isinstance(credentials_data, str):
+                credentials_data = json.loads(credentials_data)
+
+            creds = Credentials.from_authorized_user_info(credentials_data)
+
             if creds and creds.expired and creds.refresh_token:
                 # Before refreshing, check if the necessary scopes are present
                 if all(scope in creds.scopes for scope in SCOPES):
                     creds.refresh(Request())
-                else:
-                    creds = None # Force re-authentication if scopes are missing
-        
-        if not creds:
-            if not os.path.exists('credentials.json'):
-                raise FileNotFoundError("FATAL ERROR: credentials.json not found.")
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-        return creds
+
+            self.tasks_service = build('tasks', 'v1', credentials=creds)
+            return True
+        except Exception as e:
+            print(f"Todo Tool Authentication failed: {e}")
+            self.tasks_service = None
+            return False
+
+    def _check_service(self):
+        if not self.tasks_service:
+            return {"status": "error", "message": "User is not authenticated for Tasks."}
+        return None
 
     def get_upcoming_tasks(self) -> dict:
         """Retrieves all non-completed tasks that are due today, including their due dates."""
+        if err := self._check_service(): return err
         try:
             local_tz = get_localzone()
             now = datetime.datetime.now(local_tz)
@@ -88,6 +91,7 @@ class GoogleTodoTools:
         """
         Creates a new task, automatically finding or creating a relevant task list based on a category.
         """
+        if err := self._check_service(): return err
         try:
             # 1. Find the appropriate task list
             tasklists = self.tasks_service.tasklists().list().execute().get('items', [])
@@ -124,6 +128,7 @@ class GoogleTodoTools:
         """
         Deletes a task by its ID from the specified category's task list.
         """
+        if err := self._check_service(): return err
         try:
             # 1. Find the appropriate task list
             tasklists = self.tasks_service.tasklists().list().execute().get('items', [])
@@ -149,6 +154,7 @@ class GoogleTodoTools:
         """
         Marks a task as completed by its ID in the specified category's task list.
         """
+        if err := self._check_service(): return err
         try:
             # 1. Find the appropriate task list
             tasklists = self.tasks_service.tasklists().list().execute().get('items', [])
@@ -182,6 +188,7 @@ class GoogleTodoTools:
         """
         Finds the ID of a task by its title within a specific category (task list).
         """
+        if err := self._check_service(): return err
         try:
             # Step 1: Find the ID of the task list for the given category
             tasklists_result = self.tasks_service.tasklists().list().execute()
