@@ -2,26 +2,46 @@
 import os
 import json
 import uuid
-import pathlib
 import requests
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, abort
+from flask import Flask, request, jsonify, session, redirect, url_for, abort, send_from_directory
 from google_auth_oauthlib.flow import Flow
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
 from user_database import UserDB
 from orchestrator import Orchestrator
 
-# Allow OAuth over HTTP for local testing/dev. In production, this should be set to 1.
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
+def serialize_history(history):
+    """
+    Convert a list of google.genai.types.Content objects to a list of dicts.
+    """
+    serialized = []
+    for content in history:
+        item = {'role': content.role, 'parts': []}
+        for part in content.parts:
+            p_dict = {}
+            if part.text:
+                p_dict['text'] = part.text
+            if part.file_data:
+                # We can't easily send the file data back if it's not stored or valid,
+                # but our history saves '[FILE UPLOADED]' text marker often.
+                # If we have real file_data object, we might just indicate it.
+                p_dict['file_data'] = True
+            if part.function_call:
+                p_dict['function_call'] = {'name': part.function_call.name, 'args': dict(part.function_call.args)}
+            if part.function_response:
+                p_dict['function_response'] = {'name': part.function_response.name, 'response': part.function_response.response}
+            item['parts'].append(p_dict)
+        serialized.append(item)
+    return serialized
 
 class WebHandler:
     def __init__(self, orchestrator):
-        self.app = Flask(__name__, template_folder='templates')
+        self.static_folder = os.path.join(os.getcwd(), 'frontend', 'dist')
+        self.app = Flask(__name__, static_folder=self.static_folder, static_url_path='/')
         self.app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super_secret_key_for_dev")
         self.orchestrator = orchestrator
         self.user_db = UserDB()
 
-        # OAuth Configuration
         self.GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
         self.GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
@@ -49,23 +69,9 @@ class WebHandler:
 
     def setup_routes(self):
 
-        @self.app.route("/")
-        def index():
-            if 'user_id' not in session:
-                return redirect(url_for('login_page'))
+        # --- API Routes ---
 
-            user_sessions = self.user_db.get_user_sessions(session['user_id'])
-            if user_sessions:
-                return redirect(url_for('chat_page', session_id=user_sessions[0]['id']))
-            else:
-                new_id = self.user_db.create_chat_session(session['user_id'])
-                return redirect(url_for('chat_page', session_id=new_id))
-
-        @self.app.route("/login")
-        def login_page():
-            return render_template('login.html')
-
-        @self.app.route("/auth/google")
+        @self.app.route("/api/auth/google")
         def google_auth():
             flow = Flow.from_client_config(
                 self.client_config,
@@ -82,11 +88,11 @@ class WebHandler:
             session['state'] = state
             return redirect(authorization_url)
 
-        @self.app.route("/auth/callback")
+        @self.app.route("/api/auth/callback")
         def auth_callback():
             state = session.get('state')
             if not state:
-                 return redirect(url_for('login_page'))
+                 return redirect('/')
 
             flow = Flow.from_client_config(
                 self.client_config,
@@ -113,21 +119,21 @@ class WebHandler:
             creds_json = credentials.to_json()
             self.user_db.save_user(user_info, creds_json)
 
-            return redirect(url_for('index'))
+            return redirect('/')
 
-        @self.app.route("/logout")
+        @self.app.route("/api/logout")
         def logout():
             session.clear()
-            return redirect(url_for('login_page'))
+            return redirect('/')
 
-        @self.app.route("/sessions")
+        @self.app.route("/api/sessions")
         def list_sessions():
             if 'user_id' not in session:
                 return jsonify([]), 401
             sessions = self.user_db.get_user_sessions(session['user_id'])
             return jsonify(sessions)
 
-        @self.app.route("/new_chat", methods=['POST'])
+        @self.app.route("/api/new_chat", methods=['POST'])
         def new_chat():
             if 'user_id' not in session:
                 return jsonify({'error': 'Unauthorized'}), 401
@@ -135,22 +141,25 @@ class WebHandler:
             session_id = self.user_db.create_chat_session(session['user_id'])
             return jsonify({'session_id': session_id})
 
-        @self.app.route("/chat/<session_id>", methods=['GET', 'POST'])
+        @self.app.route("/api/chat/<session_id>", methods=['GET', 'POST'])
         def chat_page(session_id):
             if 'user_id' not in session:
-                return redirect(url_for('login_page'))
+                return jsonify({'error': 'Unauthorized'}), 401
 
             chat_session = self.user_db.get_session(session_id)
             if not chat_session or chat_session['user_id'] != session['user_id']:
-                return abort(404)
+                return jsonify({'error': 'Not found'}), 404
 
             if request.method == 'GET':
-                history = self.user_db.load_chat_history(session_id)
+                raw_history = self.user_db.load_chat_history(session_id)
+                # Serialize history
+                history = serialize_history(raw_history)
+
                 user = {
                     'name': session.get('user_name'),
                     'picture': session.get('user_picture')
                 }
-                return render_template('chat.html', history=history, user=user)
+                return jsonify({'history': history, 'user': user})
 
             elif request.method == 'POST':
                 user_message = request.form.get("message", "")
@@ -192,6 +201,15 @@ class WebHandler:
                         self.user_db.update_session_title(session_id, new_title)
 
                 return jsonify({'response': result['text']})
+
+        # --- Static Serving ---
+        @self.app.route("/", defaults={'path': ''})
+        @self.app.route("/<path:path>")
+        def serve(path):
+            if path != "" and os.path.exists(os.path.join(self.app.static_folder, path)):
+                return send_from_directory(self.app.static_folder, path)
+            else:
+                return send_from_directory(self.app.static_folder, 'index.html')
 
     def start(self):
         print("Starting Flask server...")
