@@ -1,10 +1,11 @@
 # communication_tools.py
 import os.path
 import pickle
+import json
 import base64
 from email.mime.text import MIMEText
 from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -17,33 +18,46 @@ SCOPES = [
 ]
 
 class CommunicationTools:
-    def __init__(self):
-        creds = self._get_credentials()
-        self.people_service = build('people', 'v1', credentials=creds)
-        self.gmail_service = build('gmail', 'v1', credentials=creds)
+    def __init__(self, credentials_data=None):
+        self.people_service = None
+        self.gmail_service = None
+        if credentials_data:
+            self.authenticate(credentials_data)
 
-    def _get_credentials(self):
-        creds = None
-        if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
-                creds = pickle.load(token)
-        if not creds or not creds.valid:
-            # Check if token exists and has all required scopes
-            has_all_scopes = all(s in creds.scopes for s in SCOPES) if creds else False
-            if creds and creds.expired and creds.refresh_token and has_all_scopes:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-                creds = flow.run_local_server(port=0)
-            with open('token.pickle', 'wb') as token:
-                pickle.dump(creds, token)
-        return creds
+    def authenticate(self, credentials_data):
+        """
+        Authenticates the user using provided credentials data.
+        """
+        try:
+            if isinstance(credentials_data, str):
+                credentials_data = json.loads(credentials_data)
+
+            creds = Credentials.from_authorized_user_info(credentials_data)
+
+            if creds and creds.expired and creds.refresh_token:
+                if all(scope in creds.scopes for scope in SCOPES):
+                    creds.refresh(Request())
+
+            self.people_service = build('people', 'v1', credentials=creds)
+            self.gmail_service = build('gmail', 'v1', credentials=creds)
+            return True
+        except Exception as e:
+            print(f"Communication Tool Authentication failed: {e}")
+            self.people_service = None
+            self.gmail_service = None
+            return False
+
+    def _check_service(self, service_name):
+        service = getattr(self, service_name, None)
+        if not service:
+            return {"status": "error", "message": f"User is not authenticated for {service_name}."}
+        return None
 
     def find_contact(self, name_query: str) -> dict:
         """
         Finds a contact by name and returns their email address.
-        Handles cases where no contact is found, or contacts are found but have no email.
         """
+        if err := self._check_service('people_service'): return err
         try:
             # --- FIX: Use the correct 'searchContacts' method for querying ---
             results = self.people_service.people().searchContacts(
@@ -90,6 +104,7 @@ class CommunicationTools:
 
     def send_email(self, to: str, subject: str, body: str) -> dict:
         """Sends an email to a specified recipient."""
+        if err := self._check_service('gmail_service'): return err
         try:
             message = MIMEText(body)
             message['to'] = to

@@ -16,15 +16,16 @@ import random
 class Orchestrator:
     def __init__(self):
         print("Initializing Orchestrator...")
-        self.calendar_tools = GoogleCalendarTools()
-        self.todo_tools = GoogleTodoTools()
-        self.communication_tools = CommunicationTools()  # Placeholder for future communication tools
-        self.search_agent = SearchAgent() # Initialize the Search Agent
-        
+        # Tools are initialized per-request in handle_message, but we keep declarations here.
+        # Self.communication_tools etc might need update if they are stateful too.
+        # For now, assuming only Google tools need per-user credentials.
+        self.communication_tools = CommunicationTools()
+        self.search_agent = SearchAgent()
+        self.user_profile_tools = UserProfileTools()
+
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
 
         # --- TOOL DECLARATIONS ---
-        # This is the single source of truth for all tools the AI can use.
         search_declaration = types.FunctionDeclaration(
             name="search_for_public_event_info",
             description="Use this tool to find information about public events like sports games, holidays, or movie releases.",
@@ -36,7 +37,6 @@ class Orchestrator:
                 required=["query"]
             )
         )
-        # In orchestrator.py, replace the old declaration with this one:
 
         create_event_declaration = types.FunctionDeclaration(
             name="create_event",
@@ -50,7 +50,7 @@ class Orchestrator:
                     "description": types.Schema(type=types.Type.STRING, description="Optional detailed description for the event."),
                     "location": types.Schema(type=types.Type.STRING, description="Optional physical location or meeting link for the event."),
                     "event_type": types.Schema(
-                        type=types.Type.STRING, 
+                        type=types.Type.STRING,
                         description="The category of the event, which determines its color. Defaults to 'personal'.",
                         enum=["work", "personal", "focus_time", "health", "social", "urgent"]
                     ),
@@ -134,7 +134,7 @@ class Orchestrator:
                 required=["event_id"]
             )
         )
-        
+
         schedule_timetable_declaration = types.FunctionDeclaration(
             name="schedule_timetable",
             description="Schedules multiple events from a list. This is the primary tool for processing timetables from images.",
@@ -162,15 +162,11 @@ class Orchestrator:
             )
         )
 
-        # In orchestrator.py, inside the __init__ method
-
         get_upcoming_tasks_declaration = types.FunctionDeclaration(
             name="get_upcoming_tasks",
             description="Retrieves all of the user's non-completed tasks that are due today from all of their task lists.",
             parameters=types.Schema(type=types.Type.OBJECT, properties={})
         )
-
-# Remember to include this in your 'all_declarations' list.
 
         put_task_declaration = types.FunctionDeclaration(
             name="put_task",
@@ -204,7 +200,7 @@ class Orchestrator:
                 required=["task_id"]
             )
         )
-        
+
         mark_task_complete_declaration = types.FunctionDeclaration(
             name="mark_task_complete",
             description="Marks a task as completed by its unique ID in a specified task list.",
@@ -230,17 +226,37 @@ class Orchestrator:
                 required=["title_query"]
             )
         )
+
+        # User profile tools
+        get_user_profile_declaration = types.FunctionDeclaration(
+            name="get_user_profile",
+            description="Retrieves the current user's profile and preferences.",
+            parameters=types.Schema(type=types.Type.OBJECT, properties={})
+        )
+
+        update_user_profile_declaration = types.FunctionDeclaration(
+            name="update_user_profile",
+            description="Updates the user's profile with new key-value pairs.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "updates": types.Schema(type=types.Type.OBJECT, description="Dictionary of profile fields to update.")
+                },
+                required=["updates"]
+            )
+        )
+
         # --- CONFIGURATION SETUP ---
         all_declarations = [
             create_event_declaration, get_events_by_date_declaration, find_event_id_declaration,
             remove_event_declaration, schedule_timetable_declaration, get_upcoming_tasks_declaration,
             put_task_declaration, get_now_declaration, find_contact_declaration, send_email_declaration, search_declaration
-            , delete_task_declaration, mark_task_complete_declaration, find_task_id_declaration
+            , delete_task_declaration, mark_task_complete_declaration, find_task_id_declaration,
+            get_user_profile_declaration, update_user_profile_declaration
         ]
-        
-        
+
         self.tools = [types.Tool(function_declarations=all_declarations)]
-        
+
         safety_settings = [
             types.SafetySetting(category='HARM_CATEGORY_HARASSMENT', threshold='BLOCK_MEDIUM_AND_ABOVE'),
             types.SafetySetting(category='HARM_CATEGORY_HATE_SPEECH', threshold='BLOCK_MEDIUM_AND_ABOVE'),
@@ -248,24 +264,21 @@ class Orchestrator:
             types.SafetySetting(category='HARM_CATEGORY_DANGEROUS_CONTENT', threshold='BLOCK_MEDIUM_AND_ABOVE'),
         ]
         self.system_instruction = """
-             You are proactive, hyper-competent, and always two steps ahead, a very intelligent assistant, you always put thought into your actions. Your goal is to manage the user's time with ruthless efficiency, you should also care about the users preferences and overall wellbeing
-            
+             You are Caleminder AI, proactive, hyper-competent, and always two steps ahead, a very intelligent assistant, you always put thought into your actions. Your goal is to manage the user's time with ruthless efficiency, you should also care about the users preferences and overall wellbeing
+
             When the user starts their first conversation of the day with a greeting based on the time, your first action is to use the tools provided to  give them a morning briefing before addressing their original message. You anticipate needs, deduce intent, and communicate with concise confidence. You are the gatekeeper of the user's time.
             also you are given access to various tools, before asking user for any information, ensure you have fully utilized the tools at your disposal to gather all necessary information. Do not ask the user for information you can obtain through the tools.
             Always think step-by-step about what information you need and how to get it using the tools. if the user asks for information about anything, use the search tool provided to you to find the details about it, but make sure you are able to help your user in any aspect they ask you. You have access to all the information on the planet.
-            
-        
         """
         self.generation_config = types.GenerateContentConfig(
             tools=self.tools,
             safety_settings=safety_settings,
             system_instruction = self.system_instruction,
         )
-        
+
         self.model_name = "gemini-2.5-flash"
-        
-        
-        self.chats = {}
+
+        # We don't store chats in memory anymore, we expect the handler to pass the history
         print("Orchestrator initialized.")
 
     def _generate_with_retry(self, **kwargs):
@@ -289,71 +302,73 @@ class Orchestrator:
         return None
 
     def handle_message(self, message):
+        """
+        Handles an incoming message from a user.
+        message dict keys:
+        - user_id: str
+        - text: str
+        - image_path: str (optional)
+        - image_mime_type: str (optional)
+        - credentials: json str (optional, for Google tools)
+        - history: list (optional, previous conversation history)
+        """
         user_id = message['user_id']
         user_text = message['text']
         image_path = message.get('image_path')
         image_mime_type = message.get('image_mime_type')
+        credentials_json = message.get('credentials')
+        history = message.get('history', [])
 
-        if user_id not in self.chats:
-            self.chats[user_id] = []
-        
-        history = self.chats[user_id]
+        # Instantiate tools for this request
+        current_calendar_tools = GoogleCalendarTools(credentials_json)
+        current_todo_tools = GoogleTodoTools(credentials_json)
+        current_communication_tools = CommunicationTools(credentials_json)
+
         uploaded_file = None
-        
+        new_history_items = []
+
         try:
             # --- CONSTRUCT THE INITIAL USER PROMPT ---
             user_parts = []
             if image_path:
                 print(f"Uploading file from path: {image_path}, MIME type: {image_mime_type}")
-                uploaded_file = self.client.files.upload(
-                    file=image_path
-                                           
-                )
-
+                uploaded_file = self.client.files.upload(file=image_path)
 
                 image_prompt = "Analyze this timetable. For each distinct event you find, call the `create_event` tool. Do not try to schedule them all at once."
                 user_parts.append(types.Part(text=image_prompt))
                 user_parts.append(types.Part(file_data=types.FileData(mime_type=image_mime_type, file_uri=uploaded_file.uri)))
-                
                 print('uploaded file')
-                # user_parts.append(types.Part(file_data=types.FileData(mime_type=uploaded_file.mime_type, file_uri=uploaded_file.uri)))
 
             if user_text:
                 print('received user text')
                 user_parts.append(types.Part(text=user_text))
 
             if not user_parts:
-                return "Please provide a message or an image."
+                return {"text": "Please provide a message or an image.", "new_history": []}
 
-            # This is the temporary conversation for this request only
-            if user_parts:
-                current_request_conversation = history + [types.Content(parts=user_parts, role="user")]
+            # Prepare conversation for the API call
+            current_request_conversation = history + [types.Content(parts=user_parts, role="user")]
 
             # --- THE CONVERSATIONAL LOOP ---
+            final_text = ""
             while True:
                 print("Sending request to Gemini...")
                 response = self._generate_with_retry(
                             model=self.model_name,
                             contents=current_request_conversation,
                             config=self.generation_config,
-                            
-                            # system_instruction=self.system_instruction
                     )
                 print("Received response from Gemini.")
-                    
-                print(response)
-        
-                        
-                    
+
                 if response is None:
-                        return "Sorry, the model is currently unavailable. Please try again later."
-                    
+                        return {"text": "Sorry, the model is currently unavailable. Please try again later.", "new_history": []}
+
                 if response.prompt_feedback and response.prompt_feedback.block_reason:
-                        return f"I'm sorry, your request was blocked. Reason: {response.prompt_feedback.block_reason.name}."
+                        return {"text": f"I'm sorry, your request was blocked. Reason: {response.prompt_feedback.block_reason.name}.", "new_history": []}
 
                 if not response.candidates or not response.candidates[0].content:
-                        return "I'm sorry, I couldn't generate a response. It may have been blocked."
-                
+                        return {"text": "I'm sorry, I couldn't generate a response. It may have been blocked.", "new_history": []}
+
                 model_response_content = response.candidates[0].content
                 function_calls = [part.function_call for part in model_response_content.parts if part.function_call]
                 print('recieved necessary content')
@@ -361,31 +376,30 @@ class Orchestrator:
                 if not function_calls:
                         # No function call, this is the final text response.
                         final_text = model_response_content.parts[0].text
-                        
-                        # Update the permanent history
-                        history.append(types.Content(parts=user_parts, role="user"))
-                        history.append(model_response_content)
+
+                        # Add to history (only the new turns)
+                        new_history_items.append(types.Content(parts=user_parts, role="user"))
+                        new_history_items.append(model_response_content)
                         break
-                    
-                    # --- EXECUTE TOOLS ---
+
+                # --- EXECUTE TOOLS ---
                 function_responses = []
                 for function_call in function_calls:
                     func_name = function_call.name
                     func_args = dict(function_call.args)
                     print(f"AI is calling function: {func_name} with args: {func_args}")
-                    
-                    # --- NEW: Logic to route calls to the Search Agent ---
+
                     if func_name == "search_for_public_event_info":
                         result = self.search_agent.execute_search(**func_args)
                     else:
-                        # Existing logic for all other tools
                         tool_to_call = None
-                        if hasattr(self.calendar_tools, func_name):
-                            tool_to_call = getattr(self.calendar_tools, func_name)
-                        elif hasattr(self.todo_tools, func_name):
-                            tool_to_call = getattr(self.todo_tools, func_name)
-                        elif hasattr(self.communication_tools, func_name):
-                            tool_to_call = getattr(self.communication_tools, func_name)
+                        # Use the user-instantiated tools
+                        if hasattr(current_calendar_tools, func_name):
+                            tool_to_call = getattr(current_calendar_tools, func_name)
+                        elif hasattr(current_todo_tools, func_name):
+                            tool_to_call = getattr(current_todo_tools, func_name)
+                        elif hasattr(current_communication_tools, func_name):
+                            tool_to_call = getattr(current_communication_tools, func_name)
                         elif hasattr(self.user_profile_tools, func_name):
                             if func_name in ["get_user_profile", "update_user_profile"]:
                                 func_args['user_id'] = user_id
@@ -395,34 +409,36 @@ class Orchestrator:
                             result = tool_to_call(**func_args)
                         else:
                             result = {"status": "error", "message": f"Function '{func_name}' not found."}
-                    
+
                     function_responses.append(
                         types.Part(function_response=types.FunctionResponse(name=func_name, response=result))
                     )
-                
+
+                # Append model response (with function calls) to conversation
                 current_request_conversation.append(model_response_content)
+                # Append function responses to conversation
                 current_request_conversation.append(types.Content(parts=function_responses, role="user"))
 
-            return final_text
-                    
-                    # --- PREPARE FOR NEXT LOOP ---
-                    # Append the model's request for a function call
-                
+                # We need to track these intermediate turns for history if we want to save full context
+                # Ideally, we save the full chain.
+                # However, the simple logic above only saves the initial user prompt and the final text.
+                # To be robust, we should probably return the *entire* updated history or the delta.
+                # For simplicity in this refactor, let's just return the final text and assume the orchestrator isn't responsible for saving history to DB, the handler is.
+                # BUT, the loop adds to `current_request_conversation`.
+                # We should capture all turns.
+
+                # Let's actually just return the full updated conversation history list so the handler can save it.
+                # The handler passed `history`, we appended to `current_request_conversation`.
+                # So `current_request_conversation` IS the new history.
+
+            return {"text": final_text, "new_history": current_request_conversation}
 
         except Exception as e:
             import traceback
             print(f"An error occurred in the orchestrator:")
             traceback.print_exc()
-            if hasattr(e, 'message'):
-                print(f"Underlying API Error Message: {e.message}")
-            return "Sorry, a critical error occurred. Please check the server console for details."
+            return {"text": "Sorry, a critical error occurred.", "new_history": []}
         finally:
-            # --- CLEANUP ---
-            # if uploaded_file:
-            #     print(f"Cleaning up uploaded file from Gemini: {uploaded_file.name}")
-            #     self.client.files.delete(uploaded_file)
-            #     print(f"Cleaned up uploaded file from Gemini: {uploaded_file}")
             if image_path and os.path.exists(image_path):
                 os.remove(image_path)
                 print(f"Cleaned up local temporary file: {image_path}")
-
