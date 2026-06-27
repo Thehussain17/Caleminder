@@ -38,14 +38,11 @@ class UserDB:
                     # Fall back to Application Default Credentials (for Cloud Run, etc.)
                     firebase_admin.initialize_app()
 
-        # Use the google-cloud-firestore client directly with explicit database
-        from firebase_admin import _apps
-        app = _apps.get('[DEFAULT]')
-        self.db = google_firestore.Client(
-            project=app.project_id,
-            credentials=app.credential.get_credential(),
-            database='default',
-        )
+        # Use firebase_admin's built-in Firestore client.
+        # This correctly uses the initialized app's credentials without any
+        # manual credential extraction (which breaks with ADC fallback).
+        from firebase_admin import firestore as fb_firestore
+        self.db = fb_firestore.client()
 
     # =========================================================================
     # USER MANAGEMENT
