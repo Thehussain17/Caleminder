@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - FIREBASE_CREDENTIALS_PATH=/app/firebase_service_account.json
+      - APP_URL=${APP_URL:-http://localhost:5000}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+    volumes:
+      - ./firebase_service_account.json:/app/firebase_service_account.json:ro
+    restart: unless-stopped

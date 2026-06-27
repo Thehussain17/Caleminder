@@ -1,0 +1,207 @@
+/* ============================================
+   WIDGET SHARED STYLES
+   ============================================ */
+
+.widget {
+  padding: 0.75rem;
+  background: var(--bg-surface);
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 3px 3px 0px var(--border-color);
+  margin-bottom: 0.5rem;
+}
+
+.widget-header {
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px dashed var(--border-color);
+}
+
+.widget-label {
+  font-size: 0.45rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+/* ---- Calendar Widget ---- */
+.cal-month {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  text-align: center;
+}
+
+.cal-dayname {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  padding: 0.2rem 0;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.cal-day {
+  font-size: 0.7rem;
+  padding: 0.25rem;
+  color: var(--text-secondary);
+  border-radius: 2px;
+  cursor: default;
+}
+
+.cal-day:hover:not(.cal-empty) {
+  background: var(--bg-input);
+}
+
+.cal-today {
+  background: var(--accent-primary) !important;
+  color: var(--bg-elevated) !important;
+  font-weight: 700;
+  border: 1px solid var(--accent-primary);
+}
+
+.cal-empty {
+  pointer-events: none;
+}
+
+/* ---- Tasks Widget ---- */
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.6rem;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.25rem;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  border-radius: 2px;
+}
+
+.task-item.done {
+  text-decoration: line-through;
+  opacity: 0.5;
+  color: var(--text-muted);
+}
+
+.task-check {
+  font-size: 0.5rem;
+  color: var(--accent-primary);
+}
+
+.task-title {
+  flex: 1;
+}
+
+/* ---- XP Bar ---- */
+.xp-bar-container {
+  margin-top: 0.5rem;
+}
+
+.xp-bar-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  color: var(--text-muted);
+}
+
+.xp-bar {
+  height: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 0px;
+  overflow: hidden;
+}
+
+.xp-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  transition: width 0.5s ease;
+}
+
+/* ---- User Card ---- */
+.user-card-body {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.user-card-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  border: 2px solid var(--border-color);
+}
+
+.user-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.user-card-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.user-card-stat {
+  font-size: 0.4rem;
+  color: var(--accent-primary);
+  letter-spacing: 1px;
+}
+
+.user-card-stats {
+  border-top: 2px dashed var(--border-color);
+  padding-top: 0.4rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.stat-value {
+  font-size: 0.45rem;
+  color: var(--accent-primary);
+}
+
+/* ---- Drive Widget ---- */
+.drive-widget-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin: 0 0 0.6rem 0;
+  line-height: 1.4;
+}
+
+.drive-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.drive-action-btn {
+  width: 100%;
+  font-size: 0.42rem;
+  padding: 0.5rem 0.4rem;
+  text-align: left;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}

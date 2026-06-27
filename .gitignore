@@ -205,3 +205,11 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Caleminder-specific
+firebase_service_account.json
+credentials.json
+token.pickle
+user_tokens/
+user_data.db
+tmp/

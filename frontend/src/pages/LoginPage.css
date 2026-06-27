@@ -1,0 +1,423 @@
+.login-wrapper {
+  width: 100%;
+  height: 100vh;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  background: var(--bg-surface);
+  scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior-y: contain;
+  /* Adds slight elasticity in modern browsers */
+}
+
+.login-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100%;
+  scroll-snap-align: start;
+}
+
+.login-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* Let mouse events pass through to capture area */
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  padding: 3rem 2.5rem;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  background: var(--bg-elevated);
+  border: 2px solid var(--border-color);
+  box-shadow: 4px 4px 0px var(--border-color);
+  border-radius: 4px;
+}
+
+.login-logo {
+  font-size: 2.5rem;
+  color: var(--text-primary);
+  margin-bottom: 1.25rem;
+}
+
+.login-title {
+  font-size: 1.2rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+}
+
+.login-subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 2.5rem;
+  line-height: 1.5;
+}
+
+.login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  background: var(--bg-void);
+  border: 2px solid var(--border-color);
+  box-shadow: 3px 3px 0px var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.login-btn .pixel-text {
+  font-size: 0.6rem;
+  letter-spacing: 0px;
+}
+
+.login-btn:hover {
+  background: var(--bg-surface);
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0px var(--border-color);
+}
+
+.login-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+.login-footer {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  margin-top: 1.5rem;
+}
+
+.scroll-indicator {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-muted);
+  font-size: 0.5rem;
+  text-align: center;
+  z-index: 2;
+  animation: bounce 2s infinite;
+}
+
+.scroll-arrow {
+  margin-top: 5px;
+  font-size: 0.8rem;
+}
+
+@keyframes bounce {
+
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+
+  40% {
+    transform: translate(-50%, -10px);
+  }
+
+  60% {
+    transform: translate(-50%, -5px);
+  }
+}
+
+.features-section {
+  padding: 5rem 2rem;
+  min-height: 100vh;
+  background: var(--bg-void);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* keep cards centered tightly in view */
+  border-top: 2px dashed var(--border-color);
+  scroll-snap-align: start;
+  perspective: 1200px;
+  /* Add depth for the card turns */
+}
+
+.features-header {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-bottom: 4rem;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+.features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4rem;
+  max-width: 900px;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}
+
+.pacman-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.feature-card-wrapper {
+  perspective: 1000px;
+  width: 100%;
+  max-width: 400px;
+  transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.8s ease;
+}
+
+.feature-card-wrapper.align-left {
+  align-self: flex-start;
+}
+
+.feature-card-wrapper.align-right {
+  align-self: flex-end;
+}
+
+.feature-card-wrapper.hidden-card {
+  opacity: 0;
+  transform: translateY(50px);
+}
+
+.feature-card-wrapper.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.feature-card-wrapper:nth-child(even).visible {
+  transform: translateY(0) rotate(2deg);
+}
+
+.feature-card-wrapper:nth-child(odd).visible {
+  transform: translateY(0) rotate(-2deg);
+}
+
+.feature-card {
+  position: relative;
+  width: 100%;
+  height: 250px;
+  text-align: center;
+  transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform-style: preserve-3d;
+  cursor: pointer;
+}
+
+.feature-card-wrapper:hover .feature-card {
+  transform: rotateY(180deg);
+}
+
+.feature-card-front,
+.feature-card-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Safari */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  border: 2px solid var(--accent-green);
+  /* Light green accent */
+  box-shadow: 6px 6px 0px rgba(77, 171, 154, 0.4);
+  /* Green tinted shadow */
+  background-color: #ffffff;
+  background-image: radial-gradient(#e5e7eb 2px, transparent 2px);
+  background-size: 20px 20px;
+  box-sizing: border-box;
+}
+
+.feature-card-front {
+  z-index: 2;
+  transform: rotateY(0deg);
+}
+
+.feature-card-back {
+  transform: rotateY(180deg);
+}
+
+.feature-icon {
+  font-size: 3rem;
+  margin-bottom: 1.5rem;
+  color: var(--accent-green);
+}
+
+.feature-title {
+  font-size: 0.8rem;
+  color: var(--accent-green);
+  margin: 0;
+}
+
+.feature-desc {
+  color: #4b5563;
+  /* Darker gray for readability on white */
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.login-footer-section {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: start;
+  border-top: 2px solid var(--border-color);
+}
+
+.footer-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 3rem;
+  background: var(--bg-elevated);
+  border: 4px solid var(--border-color);
+  box-shadow: 8px 8px 0px var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .features-list {
+    align-items: center;
+  }
+
+  .feature-card-wrapper {
+    align-self: center !important;
+  }
+}
+
+/* Fist Bump Animations */
+.fist-bump-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 80px;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.fist-bump-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  /* Make avatar circular for photo */
+  transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.hussain-avatar {
+  transform: translateX(-50px);
+}
+
+.robot-avatar {
+  /* Flip horizontal to make them face left, depending on generation */
+  transform: translateX(50px) scaleX(-1);
+}
+
+.animate-bump .hussain-avatar {
+  animation: slideRight 0.8s forwards cubic-bezier(0.5, 0, 0.5, 1);
+}
+
+.animate-bump .robot-avatar {
+  animation: slideLeft 0.8s forwards cubic-bezier(0.5, 0, 0.5, 1);
+}
+
+@keyframes slideRight {
+  0% {
+    transform: translateX(-50px) translateY(0);
+  }
+
+  50% {
+    transform: translateX(10px) translateY(-20px) rotate(15deg);
+  }
+
+  70% {
+    transform: translateX(25px) translateY(0) rotate(10deg);
+  }
+
+  /* Impact */
+  100% {
+    transform: translateX(15px) translateY(0) rotate(0);
+  }
+
+  /* Settle */
+}
+
+@keyframes slideLeft {
+  0% {
+    transform: translateX(50px) translateY(0) scaleX(-1);
+  }
+
+  50% {
+    transform: translateX(-10px) translateY(-20px) rotate(-15deg) scaleX(-1);
+  }
+
+  70% {
+    transform: translateX(-25px) translateY(0) rotate(-10deg) scaleX(-1);
+  }
+
+  /* Impact */
+  100% {
+    transform: translateX(-15px) translateY(0) rotate(0) scaleX(-1);
+  }
+
+  /* Settle */
+}
+
+.fist-bump-impact {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: #8B5CF6;
+  opacity: 0;
+}
+
+.animate-bump .fist-bump-impact {
+  animation: impactFlash 0.3s forwards ease-out 0.55s;
+}
+
+@keyframes impactFlash {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+    box-shadow: 0 0 10px 5px #8B5CF6;
+  }
+
+  100% {
+    width: 60px;
+    height: 60px;
+    opacity: 0;
+    box-shadow: 0 0 50px 25px #8B5CF6;
+  }
+}

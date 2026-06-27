@@ -1,43 +1,41 @@
 # communication_tools.py
 import os.path
-import pickle
+import json
 import base64
 from email.mime.text import MIMEText
 from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-# Define the scopes for all required services
 SCOPES = [
     'https://www.googleapis.com/auth/calendar',
     'https://www.googleapis.com/auth/tasks',
-    'https://www.googleapis.com/auth/contacts', # Read contacts
-    'https://www.googleapis.com/auth/gmail.send'       # Send emails
+    'https://www.googleapis.com/auth/contacts',
+    'https://www.googleapis.com/auth/gmail.send'
 ]
 
 class CommunicationTools:
-    def __init__(self):
-        creds = self._get_credentials()
+    def __init__(self, credentials_json=None):
+        creds = self._get_credentials(credentials_json)
         self.people_service = build('people', 'v1', credentials=creds)
         self.gmail_service = build('gmail', 'v1', credentials=creds)
 
-    def _get_credentials(self):
-        creds = None
-        if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
-                creds = pickle.load(token)
-        if not creds or not creds.valid:
-            # Check if token exists and has all required scopes
-            has_all_scopes = all(s in creds.scopes for s in SCOPES) if creds else False
-            if creds and creds.expired and creds.refresh_token and has_all_scopes:
+    def _get_credentials(self, credentials_json):
+        if credentials_json:
+            creds_data = json.loads(credentials_json) if isinstance(credentials_json, str) else credentials_json
+            creds = Credentials(
+                token=creds_data.get('token'),
+                refresh_token=creds_data.get('refresh_token'),
+                token_uri=creds_data.get('token_uri', 'https://oauth2.googleapis.com/token'),
+                client_id=creds_data.get('client_id'),
+                client_secret=creds_data.get('client_secret'),
+                scopes=creds_data.get('scopes', SCOPES),
+            )
+            if creds.expired and creds.refresh_token:
                 creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-                creds = flow.run_local_server(port=0)
-            with open('token.pickle', 'wb') as token:
-                pickle.dump(creds, token)
-        return creds
+            return creds
+        raise FileNotFoundError("No credentials provided.")
 
     def find_contact(self, name_query: str) -> dict:
         """

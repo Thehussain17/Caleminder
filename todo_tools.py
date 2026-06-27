@@ -1,51 +1,42 @@
 import os
-import pickle
+import json
 import datetime
 from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from tzlocal import get_localzone
 
-# Define only the scope needed for this tool
 SCOPES = [
     'https://www.googleapis.com/auth/calendar',
     'https://www.googleapis.com/auth/tasks',
-    'https://www.googleapis.com/auth/contacts', # Read contacts
-    'https://www.googleapis.com/auth/gmail.send'       # Send emails
+    'https://www.googleapis.com/auth/contacts',
+    'https://www.googleapis.com/auth/gmail.send'
 ]
 
 class GoogleTodoTools:
-    def __init__(self):
+    def __init__(self, credentials_json=None):
         """Initializes the Google Tasks service."""
-        self.creds = self._get_credentials()
+        self.creds = self._get_credentials(credentials_json)
         self.tasks_service = build('tasks', 'v1', credentials=self.creds)
         if not self.tasks_service:
-            raise ConnectionError("Failed to connect to Google Tasks. Check credentials.json.")
+            raise ConnectionError("Failed to connect to Google Tasks. Check credentials.")
 
-    def _get_credentials(self):
-        """Handles user authentication and token management."""
-        creds = None
-        if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
-                creds = pickle.load(token)
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                # Before refreshing, check if the necessary scopes are present
-                if all(scope in creds.scopes for scope in SCOPES):
-                    creds.refresh(Request())
-                else:
-                    creds = None # Force re-authentication if scopes are missing
-        
-        if not creds:
-            if not os.path.exists('credentials.json'):
-                raise FileNotFoundError("FATAL ERROR: credentials.json not found.")
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-        return creds
+    def _get_credentials(self, credentials_json):
+        """Reconstructs credentials from JSON string."""
+        if credentials_json:
+            creds_data = json.loads(credentials_json) if isinstance(credentials_json, str) else credentials_json
+            creds = Credentials(
+                token=creds_data.get('token'),
+                refresh_token=creds_data.get('refresh_token'),
+                token_uri=creds_data.get('token_uri', 'https://oauth2.googleapis.com/token'),
+                client_id=creds_data.get('client_id'),
+                client_secret=creds_data.get('client_secret'),
+                scopes=creds_data.get('scopes', SCOPES),
+            )
+            if creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            return creds
+        raise FileNotFoundError("No credentials provided.")
 
     def get_upcoming_tasks(self) -> dict:
         """Retrieves all non-completed tasks that are due today, including their due dates."""

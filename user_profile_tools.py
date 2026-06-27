@@ -1,5 +1,5 @@
 # user_profile_tools.py
-from user_database import UserDB
+from firebase_db import UserDB
 
 class UserProfileTools:
     """
@@ -7,8 +7,8 @@ class UserProfileTools:
     Provides high-level tools for the AI to manage user context.
     This class acts as an interface between the Orchestrator and the UserDB.
     """
-    def __init__(self, db: UserDB):
-        self.db = db
+    def __init__(self, db: UserDB = None):
+        self.db = db or UserDB()
 
     def get_user_profile(self, user_id: str) -> dict:
         """Retrieves the user's profile, including their name and preferences."""

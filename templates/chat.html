@@ -1,0 +1,565 @@
+{% extends "base.html" %}
+{% block title %}Chat — Caleminder AI{% endblock %}
+
+{% block head %}
+<style>
+  /* ---- Layout ---- */
+  .app-shell {
+    display: flex;
+    height: 100vh;
+  }
+
+  /* ---- Sidebar ---- */
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: rgba(18, 18, 24, 0.95);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .sidebar-header h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f4f4f5;
+  }
+
+  .new-chat-btn {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .new-chat-btn:hover {
+    background: rgba(99, 102, 241, 0.25);
+  }
+
+  .session-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .session-item {
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    color: #a1a1aa;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+
+  .session-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: #e4e4e7;
+  }
+
+  .session-item.active {
+    background: rgba(99, 102, 241, 0.12);
+    color: #c7d2fe;
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem;
+    margin-top: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .user-info img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+  }
+
+  .user-info .name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #d4d4d8;
+  }
+
+  .logout-btn {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: #71717a;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: inherit;
+  }
+
+  .logout-btn:hover {
+    color: #ef4444;
+  }
+
+  /* ---- Chat Area ---- */
+  .chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .chat-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #e4e4e7;
+  }
+
+  #chat-window {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  #chat-window::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  #chat-window::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  #chat-window::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+  }
+
+  /* ---- Messages ---- */
+  .msg {
+    display: flex;
+    gap: 0.75rem;
+    max-width: 75%;
+  }
+
+  .msg.user {
+    margin-left: auto;
+    flex-direction: row-reverse;
+  }
+
+  .msg-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .msg.ai .msg-avatar {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+  }
+
+  .msg.user .msg-avatar {
+    background: #3f3f46;
+    color: #a1a1aa;
+  }
+
+  .msg-bubble {
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .msg.ai .msg-bubble {
+    background: rgba(39, 39, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-top-left-radius: 0.25rem;
+  }
+
+  .msg.user .msg-bubble {
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    border-top-right-radius: 0.25rem;
+    color: #e0e7ff;
+  }
+
+  .msg-attachment {
+    font-size: 0.75rem;
+    color: #71717a;
+    margin-top: 0.4rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 0.4rem;
+  }
+
+  /* ---- Input Area ---- */
+  .input-area {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(18, 18, 24, 0.5);
+  }
+
+  #image-preview-container {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(39, 39, 42, 0.5);
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: #a1a1aa;
+  }
+
+  #image-preview-container.visible {
+    display: flex;
+  }
+
+  #remove-image-btn {
+    color: #ef4444;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .upload-label {
+    cursor: pointer;
+    padding: 0.6rem;
+    background: rgba(39, 39, 42, 0.7);
+    border-radius: 0.6rem;
+    transition: background 0.15s;
+    display: flex;
+  }
+
+  .upload-label:hover {
+    background: rgba(63, 63, 70, 0.7);
+  }
+
+  .upload-label svg {
+    color: #a1a1aa;
+  }
+
+  #message-input {
+    flex: 1;
+    background: rgba(39, 39, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0.75rem;
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
+    color: #e4e4e7;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+
+  #message-input:focus {
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+
+  #message-input::placeholder {
+    color: #52525b;
+  }
+
+  #submit-btn {
+    background: linear-gradient(135deg, #6366f1, #7c3aed);
+    border: none;
+    border-radius: 0.6rem;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  #submit-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+  }
+
+  #submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #submit-btn svg {
+    color: #fff;
+  }
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+  }
+
+  .spinner.hidden {
+    display: none;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 768px) {
+    .sidebar {
+      display: none;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="app-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Caleminder</h2>
+      <button class="new-chat-btn" id="new-chat-btn">+ New</button>
+    </div>
+    <div class="session-list" id="session-list">
+      <!-- Populated by JS -->
+    </div>
+    <div class="user-info">
+      {% if user and user.picture %}
+      <img src="{{ user.picture }}" alt="avatar" referrerpolicy="no-referrer">
+      {% endif %}
+      <span class="name">{{ user.name if user else 'User' }}</span>
+      <button class="logout-btn" onclick="location.href='/logout'">Logout</button>
+    </div>
+  </aside>
+
+  <!-- Main Chat -->
+  <main class="chat-area">
+    <div class="chat-header">Chat</div>
+    <div id="chat-window">
+      <!-- Existing history -->
+      {% for item in history %}
+      {% if item.role == 'user' %}
+      {% for part in item.parts %}
+      {% if part.text and part.text != '[FILE UPLOADED]' %}
+      <div class="msg user">
+        <div class="msg-avatar">U</div>
+        <div class="msg-bubble">{{ part.text }}</div>
+      </div>
+      {% endif %}
+      {% endfor %}
+      {% elif item.role == 'model' %}
+      {% for part in item.parts %}
+      {% if part.text %}
+      <div class="msg ai">
+        <div class="msg-avatar">C</div>
+        <div class="msg-bubble">{{ part.text }}</div>
+      </div>
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+      {% endfor %}
+
+      {% if not history %}
+      <div class="msg ai">
+        <div class="msg-avatar">C</div>
+        <div class="msg-bubble">Hello! I'm Caleminder, your intelligent calendar assistant. How can I help you today?
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="input-area">
+      <div id="image-preview-container">
+        <span id="image-preview-name"></span>
+        <button id="remove-image-btn">✕</button>
+      </div>
+      <form id="chat-form" class="input-row">
+        <label class="upload-label" for="image-upload">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <path d="M21 15l-5-5L5 21" />
+          </svg>
+          <input type="file" id="image-upload" style="display:none" accept="image/*">
+        </label>
+        <input type="text" id="message-input" placeholder="Ask me to schedule, find events, manage tasks..."
+          autocomplete="off">
+        <button type="submit" id="submit-btn">
+          <svg id="send-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+          <div id="loading-spinner" class="spinner hidden"></div>
+        </button>
+      </form>
+    </div>
+  </main>
+</div>
+
+<script>
+  const chatWindow = document.getElementById('chat-window');
+  const chatForm = document.getElementById('chat-form');
+  const messageInput = document.getElementById('message-input');
+  const imageUpload = document.getElementById('image-upload');
+  const imagePreviewContainer = document.getElementById('image-preview-container');
+  const imagePreviewName = document.getElementById('image-preview-name');
+  const removeImageBtn = document.getElementById('remove-image-btn');
+  const submitBtn = document.getElementById('submit-btn');
+  const sendIcon = document.getElementById('send-icon');
+  const loadingSpinner = document.getElementById('loading-spinner');
+  const sessionList = document.getElementById('session-list');
+
+  let attachedFile = null;
+  const currentPath = window.location.pathname; // e.g. /chat/<session_id>
+
+  // ---- Session List ----
+  async function loadSessions() {
+    try {
+      const res = await fetch('/sessions');
+      const sessions = await res.json();
+      sessionList.innerHTML = '';
+      sessions.forEach(s => {
+        const el = document.createElement('div');
+        el.className = 'session-item' + (currentPath === '/chat/' + s.id ? ' active' : '');
+        el.textContent = s.title || 'New Chat';
+        el.onclick = () => { window.location.href = '/chat/' + s.id; };
+        sessionList.appendChild(el);
+      });
+    } catch (e) {
+      console.error('Failed to load sessions:', e);
+    }
+  }
+  loadSessions();
+
+  // ---- New Chat ----
+  document.getElementById('new-chat-btn').addEventListener('click', async () => {
+    try {
+      const res = await fetch('/new_chat', { method: 'POST' });
+      const data = await res.json();
+      window.location.href = '/chat/' + data.session_id;
+    } catch (e) {
+      console.error('Failed to create chat:', e);
+    }
+  });
+
+  // ---- Image Preview ----
+  imageUpload.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      attachedFile = e.target.files[0];
+      imagePreviewName.textContent = attachedFile.name;
+      imagePreviewContainer.classList.add('visible');
+    }
+  });
+  removeImageBtn.addEventListener('click', () => {
+    attachedFile = null;
+    imageUpload.value = '';
+    imagePreviewContainer.classList.remove('visible');
+  });
+
+  // ---- Send Message ----
+  chatForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userMessage = messageInput.value.trim();
+    if (!userMessage && !attachedFile) return;
+
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append('message', userMessage);
+    if (attachedFile) formData.append('image', attachedFile);
+
+    appendMessage(userMessage, 'user', attachedFile ? attachedFile.name : null);
+    resetInput();
+
+    try {
+      const response = await fetch(currentPath, { method: 'POST', body: formData });
+      const data = await response.json();
+      appendMessage(data.response, 'ai');
+      loadSessions(); // refresh sidebar titles
+    } catch (error) {
+      console.error('Error:', error);
+      appendMessage('Sorry, something went wrong. Please try again.', 'ai');
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  function setLoading(isLoading) {
+    submitBtn.disabled = isLoading;
+    sendIcon.classList.toggle('hidden', isLoading);
+    loadingSpinner.classList.toggle('hidden', !isLoading);
+  }
+
+  function resetInput() {
+    messageInput.value = '';
+    attachedFile = null;
+    imageUpload.value = '';
+    imagePreviewContainer.classList.remove('visible');
+  }
+
+  function appendMessage(text, sender, imageName = null) {
+    if (!text && !imageName) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg ' + sender;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar';
+    avatar.textContent = sender === 'user' ? 'U' : 'C';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.innerHTML = (text || '').replace(/\n/g, '<br>');
+
+    if (imageName) {
+      bubble.innerHTML += `<div class="msg-attachment">📎 ${imageName}</div>`;
+    }
+
+    wrapper.appendChild(avatar);
+    wrapper.appendChild(bubble);
+    chatWindow.appendChild(wrapper);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+
+  // Scroll to bottom on load
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+</script>
+{% endblock %}

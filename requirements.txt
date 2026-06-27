@@ -1,3 +1,12 @@
 pillow
 flask
+flask-cors
 google-genai
+python-dateutil
+google-api-python-client
+tzlocal
+google-auth-oauthlib
+python-dotenv
+firebase-admin
+requests
+gunicorn
